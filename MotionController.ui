@@ -6,48 +6,25 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1098</width>
-    <height>795</height>
+    <width>1007</width>
+    <height>632</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>运动控制器</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <layout class="QVBoxLayout" name="verticalLayout_3">
+   <layout class="QVBoxLayout" name="verticalLayout_2" stretch="3,7">
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="1,2">
+     <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,3">
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,0">
+       <layout class="QVBoxLayout" name="verticalLayout" stretch="1,9">
         <item>
          <widget class="QGroupBox" name="groupBox">
           <property name="title">
            <string>连接控制器</string>
           </property>
           <layout class="QGridLayout" name="gridLayout">
-           <item row="3" column="1">
-            <widget class="QLineEdit" name="LocalLineEdit">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="2">
-            <widget class="QPushButton" name="PCILinkBtn">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>链接</string>
-             </property>
-            </widget>
-           </item>
            <item row="0" column="0">
             <widget class="QLabel" name="label">
              <property name="sizePolicy">
@@ -58,68 +35,6 @@
              </property>
              <property name="text">
               <string>IP</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="1">
-            <widget class="QLineEdit" name="PCILineEdit">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="label_2">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>串口</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="0">
-            <widget class="QLabel" name="label_3">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>PCI</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="2">
-            <widget class="QPushButton" name="IPScanBtn">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>IP扫描</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="3">
-            <widget class="QLabel" name="LeftTimeLabel">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>剩余时间</string>
              </property>
             </widget>
            </item>
@@ -138,8 +53,11 @@
              </item>
             </widget>
            </item>
-           <item row="1" column="3">
-            <widget class="QPushButton" name="DisconnectBtn">
+           <item row="0" column="2">
+            <widget class="QPushButton" name="IPScanBtn">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
              <property name="sizePolicy">
               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                <horstretch>0</horstretch>
@@ -147,30 +65,7 @@
               </sizepolicy>
              </property>
              <property name="text">
-              <string>断开连接</string>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="2">
-            <widget class="QPushButton" name="LocalLinkBtn">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>链接</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="1">
-            <widget class="QLineEdit" name="SeriesLineEdit">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
+              <string>IP扫描</string>
              </property>
             </widget>
            </item>
@@ -187,8 +82,11 @@
              </property>
             </widget>
            </item>
-           <item row="1" column="2">
-            <widget class="QPushButton" name="SeriesLinkBtn">
+           <item row="0" column="4">
+            <widget class="QPushButton" name="DisconnectBtn">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
              <property name="sizePolicy">
               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                <horstretch>0</horstretch>
@@ -196,20 +94,7 @@
               </sizepolicy>
              </property>
              <property name="text">
-              <string>链接</string>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="0">
-            <widget class="QLabel" name="label_5">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>LOCAL</string>
+              <string>断开连接</string>
              </property>
             </widget>
            </item>
@@ -219,131 +104,121 @@
         <item>
          <widget class="QGroupBox" name="groupBox_3">
           <property name="title">
-           <string>操作</string>
+           <string>检测操作</string>
           </property>
-          <layout class="QVBoxLayout" name="verticalLayout">
-           <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_2">
-             <item>
-              <widget class="QLabel" name="label_15">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="text">
-                <string>存储路径</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLineEdit" name="SavedPathLineEdit">
-               <property name="text">
-                <string>G://11.bin</string>
-               </property>
-               <property name="clearButtonEnabled">
-                <bool>false</bool>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="SavedPathComboBox">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-              </widget>
-             </item>
-            </layout>
+          <layout class="QGridLayout" name="gridLayout_6">
+           <item row="0" column="5">
+            <spacer name="horizontalSpacer">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>198</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
            </item>
-           <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_3">
-             <item>
-              <widget class="QPushButton" name="ClearAlarmBtn">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="text">
-                <string>清除报警</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="OriginBtn">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="text">
-                <string>原点</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="StartInspectBtn">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="text">
-                <string>开始检测</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
+           <item row="2" column="2" colspan="4">
+            <widget class="QLabel" name="LeftTime">
+             <property name="font">
+              <font>
+               <pointsize>18</pointsize>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">color: rgb(255, 85, 0);</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="textFormat">
+              <enum>Qt::TextFormat::AutoText</enum>
+             </property>
+            </widget>
            </item>
-           <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_4">
-             <item>
-              <widget class="QLabel" name="label_16">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="text">
-                <string>定长</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QDoubleSpinBox" name="StepDoubleSpinBox">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="value">
-                <double>10.000000000000000</double>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QCheckBox" name="ContinueCheckBox">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="text">
-                <string>连续</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
+           <item row="0" column="0" colspan="3">
+            <widget class="QPushButton" name="OriginBtn">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>原点</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="3" colspan="2">
+            <widget class="QPushButton" name="StartInspectBtn">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">background-color: rgb(0, 170, 0);</string>
+             </property>
+             <property name="text">
+              <string>开始检测</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="4">
+            <widget class="QCheckBox" name="ContinueCheckBox">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>连续</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="2">
+            <widget class="QLabel" name="LeftTimeLabel">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>剩余时间</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1" colspan="3">
+            <widget class="QDoubleSpinBox" name="StepDoubleSpinBox">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="value">
+              <double>10.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_16">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>定长</string>
+             </property>
+            </widget>
            </item>
           </layout>
          </widget>
@@ -378,6 +253,9 @@
          </item>
          <item row="6" column="3">
           <widget class="QCheckBox" name="SingleDirCheckBox">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -489,6 +367,9 @@
          </item>
          <item row="6" column="2">
           <widget class="QCheckBox" name="ColoumScanCheckBox">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -530,6 +411,11 @@
            <item>
             <property name="text">
              <string>栅格扫查</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>连续扫查</string>
             </property>
            </item>
           </widget>
@@ -634,6 +520,9 @@
          </item>
          <item row="6" column="1">
           <widget class="QCheckBox" name="ScanMirrorCheckBox">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -693,6 +582,9 @@
          </item>
          <item row="6" column="0">
           <widget class="QCheckBox" name="HeapStackCheckBox">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -710,7 +602,7 @@
      </layout>
     </item>
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1,1,1,1">
+     <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1,1,1">
       <item>
        <widget class="QGroupBox" name="groupBox_4">
         <property name="title">
@@ -766,7 +658,7 @@
           <widget class="QLineEdit" name="XSpeedLineEdit"/>
          </item>
          <item row="3" column="0" colspan="2">
-          <widget class="QDoubleSpinBox" name="doubleSpinBox_6">
+          <widget class="QDoubleSpinBox" name="XdoubleSpinBox">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -911,7 +803,7 @@
           <widget class="QLineEdit" name="YSpeedLineEdit"/>
          </item>
          <item row="3" column="0" colspan="2">
-          <widget class="QDoubleSpinBox" name="doubleSpinBox_7">
+          <widget class="QDoubleSpinBox" name="YdoubleSpinBox">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -1004,7 +896,7 @@
       <item>
        <widget class="QGroupBox" name="groupBox_6">
         <property name="title">
-         <string>Z轴状态</string>
+         <string>Z前轴状态</string>
         </property>
         <layout class="QGridLayout" name="gridLayout_5">
          <item row="0" column="0">
@@ -1021,7 +913,7 @@
           </widget>
          </item>
          <item row="0" column="1" colspan="2">
-          <widget class="QLineEdit" name="ZStateLineEdit"/>
+          <widget class="QLineEdit" name="ZQStateLineEdit"/>
          </item>
          <item row="1" column="0">
           <widget class="QLabel" name="label_23">
@@ -1037,7 +929,7 @@
           </widget>
          </item>
          <item row="1" column="1" colspan="2">
-          <widget class="QLineEdit" name="ZLocateLineEdit"/>
+          <widget class="QLineEdit" name="ZQLocateLineEdit"/>
          </item>
          <item row="2" column="0">
           <widget class="QLabel" name="label_25">
@@ -1053,10 +945,10 @@
           </widget>
          </item>
          <item row="2" column="1" colspan="2">
-          <widget class="QLineEdit" name="ZSpeeLineEdit"/>
+          <widget class="QLineEdit" name="ZQSpeedLineEdit"/>
          </item>
          <item row="3" column="0" colspan="2">
-          <widget class="QDoubleSpinBox" name="doubleSpinBox_8">
+          <widget class="QDoubleSpinBox" name="ZQdoubleSpinBox">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -1079,7 +971,7 @@
           </widget>
          </item>
          <item row="4" column="0" colspan="2">
-          <widget class="QPushButton" name="ZParaBtn">
+          <widget class="QPushButton" name="ZQParaBtn">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -1092,7 +984,7 @@
           </widget>
          </item>
          <item row="4" column="2">
-          <widget class="QPushButton" name="ZClearBtn">
+          <widget class="QPushButton" name="ZQClearBtn">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -1105,7 +997,7 @@
           </widget>
          </item>
          <item row="5" column="0" colspan="2">
-          <widget class="QPushButton" name="ZNormalBtn">
+          <widget class="QPushButton" name="ZQNormalBtn">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -1118,7 +1010,7 @@
           </widget>
          </item>
          <item row="5" column="2">
-          <widget class="QPushButton" name="ZReverseBtn">
+          <widget class="QPushButton" name="ZQReverseBtn">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -1131,140 +1023,7 @@
           </widget>
          </item>
          <item row="6" column="0" colspan="2">
-          <widget class="QPushButton" name="ZStopBtn">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string>停止</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item>
-       <widget class="QGroupBox" name="groupBox_7">
-        <property name="title">
-         <string>A(偏转)轴状态</string>
-        </property>
-        <layout class="QGridLayout" name="gridLayout_6">
-         <item row="0" column="0">
-          <widget class="QLabel" name="label_27">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string>当前状态</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1" colspan="2">
-          <widget class="QLineEdit" name="AStateLineEdit"/>
-         </item>
-         <item row="1" column="0">
-          <widget class="QLabel" name="label_26">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string>当前位置</string>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1" colspan="2">
-          <widget class="QLineEdit" name="ALocateLineEdit"/>
-         </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="label_28">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string>当前速度</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="1" colspan="2">
-          <widget class="QLineEdit" name="ASpeedLineEdit"/>
-         </item>
-         <item row="3" column="0" colspan="2">
-          <widget class="QDoubleSpinBox" name="doubleSpinBox_9">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="2">
-          <widget class="QCheckBox" name="checkBox_9">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string>连续</string>
-           </property>
-          </widget>
-         </item>
-         <item row="4" column="0" colspan="2">
-          <widget class="QPushButton" name="AParaBtn">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string>参数</string>
-           </property>
-          </widget>
-         </item>
-         <item row="4" column="2">
-          <widget class="QPushButton" name="AClearBtn">
-           <property name="text">
-            <string>清零</string>
-           </property>
-          </widget>
-         </item>
-         <item row="5" column="0" colspan="2">
-          <widget class="QPushButton" name="ANormalBtn">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string>正转</string>
-           </property>
-          </widget>
-         </item>
-         <item row="5" column="2">
-          <widget class="QPushButton" name="AReverseBtn">
-           <property name="text">
-            <string>反转</string>
-           </property>
-          </widget>
-         </item>
-         <item row="6" column="0" colspan="2">
-          <widget class="QPushButton" name="AStopBtn">
+          <widget class="QPushButton" name="ZQStopBtn">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -1282,7 +1041,7 @@
       <item>
        <widget class="QGroupBox" name="groupBox_8">
         <property name="title">
-         <string>B(偏转)轴状态</string>
+         <string>Z后轴状态</string>
         </property>
         <layout class="QGridLayout" name="gridLayout_7">
          <item row="0" column="0">
@@ -1299,7 +1058,7 @@
           </widget>
          </item>
          <item row="0" column="1" colspan="2">
-          <widget class="QLineEdit" name="BStateLineEdit"/>
+          <widget class="QLineEdit" name="ZHStateLineEdit"/>
          </item>
          <item row="1" column="0">
           <widget class="QLabel" name="label_29">
@@ -1315,7 +1074,7 @@
           </widget>
          </item>
          <item row="1" column="1" colspan="2">
-          <widget class="QLineEdit" name="BLocateLineEdit"/>
+          <widget class="QLineEdit" name="ZHLocateLineEdit"/>
          </item>
          <item row="2" column="0">
           <widget class="QLabel" name="label_31">
@@ -1331,10 +1090,10 @@
           </widget>
          </item>
          <item row="2" column="1" colspan="2">
-          <widget class="QLineEdit" name="BSpeedLineEdit"/>
+          <widget class="QLineEdit" name="ZHSpeedLineEdit"/>
          </item>
          <item row="3" column="0" colspan="2">
-          <widget class="QDoubleSpinBox" name="doubleSpinBox_10">
+          <widget class="QDoubleSpinBox" name="ZHdoubleSpinBox">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -1357,7 +1116,7 @@
           </widget>
          </item>
          <item row="4" column="0" colspan="2">
-          <widget class="QPushButton" name="BParaBtn">
+          <widget class="QPushButton" name="ZHParaBtn">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -1370,7 +1129,7 @@
           </widget>
          </item>
          <item row="4" column="2">
-          <widget class="QPushButton" name="BClearBtn">
+          <widget class="QPushButton" name="ZHClearBtn">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -1383,7 +1142,7 @@
           </widget>
          </item>
          <item row="5" column="0" colspan="2">
-          <widget class="QPushButton" name="BNormalBtn_2">
+          <widget class="QPushButton" name="ZHNormalBtn_2">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -1396,14 +1155,14 @@
           </widget>
          </item>
          <item row="5" column="2">
-          <widget class="QPushButton" name="BReverseBtn">
+          <widget class="QPushButton" name="ZHReverseBtn">
            <property name="text">
             <string>反转</string>
            </property>
           </widget>
          </item>
          <item row="6" column="0" colspan="2">
-          <widget class="QPushButton" name="BStopBtn">
+          <widget class="QPushButton" name="ZHStopBtn">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
