@@ -852,7 +852,7 @@
           </widget>
          </item>
          <item row="5" column="0" colspan="2">
-          <widget class="QPushButton" name="BNormalBtn">
+          <widget class="QPushButton" name="YNormalBtn">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -1142,7 +1142,7 @@
           </widget>
          </item>
          <item row="5" column="0" colspan="2">
-          <widget class="QPushButton" name="ZHNormalBtn_2">
+          <widget class="QPushButton" name="ZHNormalBtn">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
