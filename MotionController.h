@@ -141,7 +141,10 @@ private:
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
+private:
+    bool handleMotionKey(QKeyEvent* event);
 };
 
 

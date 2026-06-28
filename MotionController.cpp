@@ -2,6 +2,8 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QCoreApplication>
+#include <QApplication>
+#include <QEvent>
 #include <QCheckBox>
 #include <QDoubleSpinBox>
 #include <QKeyEvent>
@@ -12,6 +14,8 @@ MotionController::MotionController(QWidget* parent)
     : QMainWindow(parent)
 {
     ui.setupUi(this);
+    qApp->installEventFilter(this);
+
     updateTimer = new QTimer(this);
 
     m_axisList[0] = { Axis::X_AXIS, ui.XStateLineEdit, ui.XLocateLineEdit, ui.XSpeedLineEdit };
@@ -28,6 +32,7 @@ MotionController::MotionController(QWidget* parent)
 
 MotionController::~MotionController()
 {
+    qApp->removeEventFilter(this);
     saveConfig(); // 退出时保存配置
     ZAux_Close(handle);
     handle = nullptr;
@@ -43,6 +48,7 @@ void MotionController::on_DisconnectBtn_clicked()
     handle = nullptr;
     ui.ConnectBtn->setEnabled(true);
     ui.DisconnectBtn->setEnabled(false);
+    ui.IPComboBox->setEnabled(true);
     ui.OriginBtn->setText("原点回零");
     ui.StartInspectBtn->setText("开始检测");
 
@@ -611,6 +617,7 @@ void MotionController::on_ConnectBtn_clicked()
         // Connection successful
         ui.ConnectBtn->setEnabled(false);
         ui.DisconnectBtn->setEnabled(true);
+        ui.IPComboBox->setEnabled(false);
 
         // 保存 IP 到配置
         QSettings settings(configFilePath(), QSettings::IniFormat);
@@ -627,13 +634,35 @@ void MotionController::on_ConnectBtn_clicked()
 
 void MotionController::keyPressEvent(QKeyEvent* event)
 {
-    // 未连接时不处理
-    if (!handle || event->isAutoRepeat())
-    {
-        QMainWindow::keyPressEvent(event);
+    if (handleMotionKey(event))
         return;
+
+    QMainWindow::keyPressEvent(event);
+}
+
+bool MotionController::eventFilter(QObject* watched, QEvent* event)
+{
+    bool isOwnObject = false;
+    for (QObject* object = watched; object; object = object->parent())
+    {
+        if (object == this)
+        {
+            isOwnObject = true;
+            break;
+        }
     }
 
+    if (isOwnObject && event->type() == QEvent::KeyPress)
+    {
+        if (handleMotionKey(static_cast<QKeyEvent*>(event)))
+            return true;
+    }
+
+    return QMainWindow::eventFilter(watched, event);
+}
+
+bool MotionController::handleMotionKey(QKeyEvent* event)
+{
     int axis = -1;
     float dir = 1.0f;
 
@@ -648,9 +677,14 @@ void MotionController::keyPressEvent(QKeyEvent* event)
     case Qt::Key_PageUp:     axis = Axis::Z_BACK_AXIS;   dir =  1; break;
     case Qt::Key_PageDown:   axis = Axis::Z_BACK_AXIS;   dir = -1; break;
     default:
-        QMainWindow::keyPressEvent(event);
-        return;
+        return false;
     }
+
+    event->accept();
+
+    // Always consume motion keys so focused controls cannot react to them too.
+    if (!handle || event->isAutoRepeat())
+        return true;
 
     // 读对应轴的定长值，寸动
     QDoubleSpinBox* stepSpin = nullptr;
@@ -667,6 +701,8 @@ void MotionController::keyPressEvent(QKeyEvent* event)
         float step = stepSpin->value() * dir;
         ZAux_Direct_Single_Move(handle, axis, step);
     }
+
+    return true;
 }
 
 // ==================== 扫描状态机 ====================
