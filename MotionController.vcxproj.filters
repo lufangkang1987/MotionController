@@ -21,6 +21,9 @@
       <UniqueIdentifier>{639EADAA-A684-42e4-A9AD-28FC9BCB8F7C}</UniqueIdentifier>
       <Extensions>ts</Extensions>
     </Filter>
+    <Filter Include="Services">
+      <UniqueIdentifier>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="MotionController.qrc">
@@ -53,5 +56,36 @@
     <QtMoc Include="ParaSettings.h">
       <Filter>Header Files</Filter>
     </QtMoc>
+    <QtMoc Include="MotionController\Services\ZmcAdapter.h">
+      <Filter>Services</Filter>
+    </QtMoc>
+    <QtMoc Include="MotionController\Services\AxisService.h">
+      <Filter>Services</Filter>
+    </QtMoc>
+    <QtMoc Include="MotionController\Services\HomeService.h">
+      <Filter>Services</Filter>
+    </QtMoc>
+    <QtMoc Include="MotionController\Services\ScanService.h">
+      <Filter>Services</Filter>
+    </QtMoc>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="MotionController\Types.h">
+      <Filter>Services</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="MotionController\Services\ZmcAdapter.cpp">
+      <Filter>Services</Filter>
+    </ClCompile>
+    <ClCompile Include="MotionController\Services\AxisService.cpp">
+      <Filter>Services</Filter>
+    </ClCompile>
+    <ClCompile Include="MotionController\Services\HomeService.cpp">
+      <Filter>Services</Filter>
+    </ClCompile>
+    <ClCompile Include="MotionController\Services\ScanService.cpp">
+      <Filter>Services</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

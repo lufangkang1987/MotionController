@@ -112,9 +112,20 @@
     <ClCompile Include="MotionController.cpp" />
     <ClCompile Include="main.cpp" />
     <QtUic Include="ParaSettings.ui" />
+    <ClCompile Include="MotionController\Services\ZmcAdapter.cpp" />
+    <ClCompile Include="MotionController\Services\AxisService.cpp" />
+    <ClCompile Include="MotionController\Services\HomeService.cpp" />
+    <ClCompile Include="MotionController\Services\ScanService.cpp" />
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="ParaSettings.h" />
+    <QtMoc Include="MotionController\Services\ZmcAdapter.h" />
+    <QtMoc Include="MotionController\Services\AxisService.h" />
+    <QtMoc Include="MotionController\Services\HomeService.h" />
+    <QtMoc Include="MotionController\Services\ScanService.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="MotionController\Types.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">
