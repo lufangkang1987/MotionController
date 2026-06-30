@@ -75,11 +75,11 @@ void AxisService::applyParametersFromConfig(AxisParams* outCache)
         QString group = QString("Axis%1").arg(axis);
         settings.beginGroup(group);
         AxisParams params;
-        params.m_units  = settings.value("units",  1.0f).toFloat();
+        params.m_units  = settings.value("units",  1000.0f).toFloat();
         params.m_lspeed = settings.value("lspeed", 0.0f).toFloat();
-        params.m_speed  = settings.value("speed",  100.0f).toFloat();
-        params.m_acc    = settings.value("acc",    3000.0f).toFloat();
-        params.m_dec    = settings.value("dec",    3000.0f).toFloat();
+        params.m_speed  = settings.value("speed",  20.0f).toFloat();
+        params.m_acc    = settings.value("acc",    2000.0f).toFloat();
+        params.m_dec    = settings.value("dec",    2000.0f).toFloat();
         params.m_sramp  = settings.value("sramp",  10.0f).toFloat();
         params.dir      = settings.value("dir",    0).toInt();
         settings.endGroup();

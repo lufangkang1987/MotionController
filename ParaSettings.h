@@ -6,11 +6,11 @@
 
 struct AxisParams
 {
-    float m_units = 1.0f;
+    float m_units = 1000.0f;
     float m_lspeed = 0.0f;
-    float m_speed = 100.0f;
-    float m_acc = 3000.0f;
-    float m_dec = 3000.0f;
+    float m_speed = 20.0f;
+    float m_acc = 2000.0f;
+    float m_dec = 2000.0f;
     float m_sramp = 10.0f;
     int dir = 0; // 0: normal, 1: reverse
 };
