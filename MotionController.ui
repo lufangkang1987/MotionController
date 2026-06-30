@@ -287,6 +287,9 @@
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="value">
+            <double>1.000000000000000</double>
+           </property>
           </widget>
          </item>
          <item row="0" column="2">
@@ -401,7 +404,7 @@
             <double>1.000000000000000</double>
            </property>
            <property name="value">
-            <double>10.000000000000000</double>
+            <double>99.989999999999995</double>
            </property>
           </widget>
          </item>
@@ -435,6 +438,9 @@
            </property>
            <property name="alignment">
             <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+           <property name="value">
+            <double>10.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -472,6 +478,9 @@
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="value">
+            <double>1.000000000000000</double>
+           </property>
           </widget>
          </item>
          <item row="3" column="2">
@@ -497,12 +506,12 @@
            </property>
            <item>
             <property name="text">
-             <string>X轴</string>
+             <string>Y轴</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>Y轴</string>
+             <string>X轴</string>
             </property>
            </item>
           </widget>
@@ -670,6 +679,9 @@
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="value">
+            <double>10.000000000000000</double>
+           </property>
           </widget>
          </item>
          <item row="3" column="2">
@@ -814,6 +826,9 @@
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
+           </property>
+           <property name="value">
+            <double>10.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -960,6 +975,9 @@
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="value">
+            <double>10.000000000000000</double>
+           </property>
           </widget>
          </item>
          <item row="3" column="2">
@@ -1104,6 +1122,9 @@
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
+           </property>
+           <property name="value">
+            <double>10.000000000000000</double>
            </property>
           </widget>
          </item>

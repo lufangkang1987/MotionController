@@ -9,6 +9,7 @@
 #include <QKeyEvent>
 #include <cmath>
 #include "ParaSettings.h"
+#include <QThread>
 
 MotionController::MotionController(QWidget* parent)
     : QMainWindow(parent)
@@ -66,7 +67,7 @@ void MotionController::on_OriginBtn_clicked()
     // 正在回零中 → 点击 = 停止回零
     if (m_isHoming)
     {
-        int axes[] = {Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS};
+        int axes[] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
         for (int axis : axes)
             ZAux_Direct_Single_Cancel(handle, axis, 2);
         m_isHoming = false;
@@ -75,7 +76,7 @@ void MotionController::on_OriginBtn_clicked()
     }
 
     // 检查各轴是否空闲
-    int axes[] = {Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS};
+    int axes[] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
     for (int axis : axes)
     {
         int idle = 0;
@@ -91,21 +92,50 @@ void MotionController::on_OriginBtn_clicked()
     // ---------- 从配置文件读取回零参数 ----------
     QSettings settings(configFilePath(), QSettings::IniFormat);
     // 回零模式：1=正向回零 2=反向回零 3=正向回零+反向退出 4=反向回零+正向退出
-    int datumMode = settings.value("Home/Mode", 3).toInt();
+    int datumMode = settings.value("Home/Mode", 4).toInt();
 
     // ---------- 发起全部轴回零 ----------
     m_isHoming = true;
     ui.OriginBtn->setText("停止回零");
 
+    // 关键：先把界面上设好的脉冲当量/速度/加减速度下发到控制器，
+    // 否则 m_axisParams 全是 0，电机不会动
+    applyAllAxisParams();
+
     for (int axis : axes)
     {
         // 脉冲当量、速度、加减速度（复用轴参数）
-        ZAux_Direct_SetUnits(handle, axis,   m_axisParams[axis].m_units);
-        ZAux_Direct_SetLspeed(handle, axis,  m_axisParams[axis].m_lspeed);
-        ZAux_Direct_SetSpeed(handle, axis,   m_axisParams[axis].m_speed);
-        ZAux_Direct_SetAccel(handle, axis,   m_axisParams[axis].m_acc);
-        ZAux_Direct_SetDecel(handle, axis,   m_axisParams[axis].m_dec);
+        ZAux_Direct_SetAtype(handle, axis, 65);
+        ZAux_Direct_SetUnits(handle, axis, m_axisParams[axis].m_units);
+        ZAux_Direct_SetLspeed(handle, axis, m_axisParams[axis].m_lspeed);
+        ZAux_Direct_SetSpeed(handle, axis, m_axisParams[axis].m_speed);
+        ZAux_Direct_SetAccel(handle, axis, m_axisParams[axis].m_acc);
+        ZAux_Direct_SetDecel(handle, axis, m_axisParams[axis].m_dec);
+        ZAux_Direct_SetSramp(handle, axis, m_axisParams[axis].m_sramp);
         ZAux_Direct_SetCreep(handle, axis, 10.0f);
+        ZAux_Direct_SetHomeWait(handle, axis, 1000);
+
+        // 诊断：把回零前各轴关键参数打到日志
+        float curUnits=0, curSpeed=0, curAcc=0, curLspeed=0, curCreep=0;
+        ZAux_Direct_GetUnits(handle, axis, &curUnits);
+        ZAux_Direct_GetSpeed(handle, axis, &curSpeed);
+        ZAux_Direct_GetAccel(handle, axis, &curAcc);
+        ZAux_Direct_GetLspeed(handle, axis, &curLspeed);
+        ZAux_Direct_GetCreep(handle, axis, &curCreep);
+        int curDatumIn=-1, curFwdIn=-1, curRevIn=-1;
+        ZAux_Direct_GetDatumIn(handle, axis, &curDatumIn);
+        ZAux_Direct_GetFwdIn(handle, axis, &curFwdIn);
+        ZAux_Direct_GetRevIn(handle, axis, &curRevIn);
+        qDebug() << "[HOME] axis" << axis
+                 << "units=" << curUnits
+                 << "lspeed=" << curLspeed
+                 << "speed=" << curSpeed
+                 << "acc=" << curAcc
+                 << "creep=" << curCreep
+                 << "DatumIn=" << curDatumIn
+                 << "FwdIn=" << curFwdIn
+                 << "RevIn=" << curRevIn
+                 << "mode=" << datumMode;
 
         // 原点/限位输入口 — 从配置文件读取，默认 -1 表示不启用
         // 在 config.ini 里填实际接线编号，例如：
@@ -114,14 +144,95 @@ void MotionController::on_OriginBtn_clicked()
         //   FwdIn0=4     ← X轴正限位接 IN4
         //   RevIn0=8     ← X轴负限位接 IN8
         int datumIn = settings.value(QString("Home/DatumIn%1").arg(axis), -1).toInt();
-        int fwdIn   = settings.value(QString("Home/FwdIn%1").arg(axis),   -1).toInt();
-        int revIn   = settings.value(QString("Home/RevIn%1").arg(axis),   -1).toInt();
+        int fwdIn = settings.value(QString("Home/FwdIn%1").arg(axis), -1).toInt();
+        int revIn = settings.value(QString("Home/RevIn%1").arg(axis), -1).toInt();
 
-        if (datumIn >= 0) ZAux_Direct_SetDatumIn(handle, axis, datumIn);
-        if (fwdIn   >= 0) ZAux_Direct_SetFwdIn(handle, axis, fwdIn);
-        if (revIn   >= 0) ZAux_Direct_SetRevIn(handle, axis, revIn);
+        if (fwdIn >= 0)
+        {
+            ZAux_Direct_SetFwdIn(handle, axis, fwdIn);
+            //ZAux_Direct_SetInvertIn(handle, fwdIn, 1); // 反向输入，限位开关常闭接法
+        }
 
+        if (revIn >= 0)
+        {
+            ZAux_Direct_SetRevIn(handle, axis, revIn);
+            //ZAux_Direct_SetInvertIn(handle, revIn, 1); // 反向输入，限位开关常闭接法
+        }
+
+        if (datumIn >= 0)
+        {
+            ZAux_Direct_SetDatumIn(handle, axis, datumIn);
+            //ZAux_Direct_SetInvertIn(handle, datumIn, 1); // 原点也反向，常闭接法需要
+        }
+        ZAux_Direct_SetDpos(handle, axis, 0);
+        ZAux_Direct_SetMpos(handle, axis, 0);
+        ZAux_Trigger(handle);
         ZAux_Direct_Single_Datum(handle, axis, datumMode);
+    }
+
+    // ---------- 等待四个轴全部回零完成 ----------
+    // GetHomeStatus: 0=回零异常(未完成), 1=回零成功
+    int timeoutMs = 60000;  // 超时60秒
+    int elapsed = 0;
+
+    while (m_isHoming && handle)
+    {
+        QThread::msleep(100);
+        QApplication::processEvents();  // 保持UI响应，用户可以点"停止回零"
+        elapsed += 100;
+
+        if (!m_isHoming) break;  // 用户点了停止
+
+        if (elapsed > timeoutMs)
+        {
+            for (int ax : axes)
+                ZAux_Direct_Single_Cancel(handle, ax, 2);
+            m_isHoming = false;
+            ui.OriginBtn->setText("原点回零");
+            QMessageBox::critical(this, "回零失败",
+                "回零超时（60秒），请检查：\n1. 原点传感器接线\n2. 回零方向是否正确\n3. 限位是否触发");
+            return;
+        }
+
+        bool allDone = true;
+        for (int ax : axes)
+        {
+            uint32 homestatus = 0;
+            ZAux_Direct_GetHomeStatus(handle, ax, &homestatus);
+            int idle = 0;
+            ZAux_Direct_GetIfIdle(handle, ax, &idle);
+            float dpos=0, mpos=0, mspeed=0;
+            ZAux_Direct_GetDpos(handle, ax, &dpos);
+            ZAux_Direct_GetMpos(handle, ax, &mpos);
+            ZAux_Direct_GetVpSpeed(handle, ax, &mspeed);
+            qDebug() << "[HOME] tick" << elapsed
+                     << "axis" << ax
+                     << "homestatus=" << homestatus
+                     << "idle=" << idle
+                     << "dpos=" << dpos
+                     << "mpos=" << mpos
+                     << "mspeed=" << mspeed;
+            if (homestatus != 1)
+            {
+                allDone = false;
+                break;
+            }
+        }
+
+        if (allDone)
+        {
+            m_isHoming = false;
+            ui.OriginBtn->setText("原点回零");
+
+            for (int ax : axes)
+            {
+                ZAux_Direct_SetDpos(handle, ax, 0);
+                ZAux_Direct_SetMpos(handle, ax, 0);
+            }
+
+            QMessageBox::information(this, "提示", "所有轴回零完成，原点已置零");
+            break;
+        }
     }
 }
 
@@ -150,8 +261,8 @@ void MotionController::on_StartPointBtn_clicked()
         QMessageBox::warning(this, "提示", "请先连接控制器");
         return;
     }
-    int axes[4] = {Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS};
-    const char* labels[4] = {"X", "Y", "ZQ", "ZH"};
+    int axes[4] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
+    const char* labels[4] = { "X", "Y", "ZQ", "ZH" };
     QString text;
     for (int i = 0; i < 4; i++)
     {
@@ -160,16 +271,18 @@ void MotionController::on_StartPointBtn_clicked()
         text += QString("%1:%2").arg(labels[i]).arg(m_startPoint[i], 0, 'f', 2);
     }
     ui.lineEdit_4->setText(text);
+
+    updateScanRegionLength();   // 获取区域：设置起点后同步更新扫查长度和步进长度
 }
 
 void MotionController::on_BackStartPointBtn_clicked()
-{ 
+{
     if (!handle)
     {
         QMessageBox::warning(this, "提示", "请先连接控制器");
         return;
     }
-    int axes[4] = {Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS};
+    int axes[4] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
     for (int i = 0; i < 4; i++)
     {
         ZAux_Direct_Single_MoveAbs(handle, axes[i], m_startPoint[i]);
@@ -183,8 +296,8 @@ void MotionController::on_EndBtn_clicked()
         QMessageBox::warning(this, "提示", "请先连接控制器");
         return;
     }
-    int axes[4] = {Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS};
-    const char* labels[4] = {"X", "Y", "ZQ", "ZH"};
+    int axes[4] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
+    const char* labels[4] = { "X", "Y", "ZQ", "ZH" };
     QString text;
     for (int i = 0; i < 4; i++)
     {
@@ -193,21 +306,29 @@ void MotionController::on_EndBtn_clicked()
         text += QString("%1:%2").arg(labels[i]).arg(m_endPoint[i], 0, 'f', 2);
     }
     ui.lineEdit_5->setText(text);
+
+    updateScanRegionLength();   // 获取区域：设置终点后同步更新扫查长度和步进长度
 }
 
 
 void MotionController::on_BackEndBtn_clicked()
-{ 
+{
     if (!handle)
     {
         QMessageBox::warning(this, "提示", "请先连接控制器");
         return;
     }
-    int axes[4] = {Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS};
+    int axes[4] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
     for (int i = 0; i < 4; i++)
     {
         ZAux_Direct_Single_MoveAbs(handle, axes[i], m_endPoint[i]);
     }
+}
+
+void MotionController::on_GainRegionRadioBtn_clicked()
+{
+    // 切换到"获取区域"模式时，根据当前起点/终点重新计算扫查长度和步进长度
+    updateScanRegionLength();
 }
 
 void MotionController::on_StepDoubleSpinBox_valueChanged(double arg1)
@@ -324,6 +445,7 @@ void MotionController::applyAxisParameters(int axis, const AxisParams& params)
     m_axisParams[axis] = params;
 
     if (!handle) return;
+    ZAux_Direct_SetAtype(handle, axis, 65);
     ZAux_Direct_SetUnits(handle, axis, params.m_units);
     ZAux_Direct_SetLspeed(handle, axis, params.m_lspeed);
     ZAux_Direct_SetSpeed(handle, axis, params.m_speed);
@@ -345,13 +467,13 @@ void MotionController::applyAllAxisParams()
         QString group = QString("Axis%1").arg(axis);
         settings.beginGroup(group);
         AxisParams params;
-        params.m_units  = settings.value("units",  1.0f).toFloat();
+        params.m_units = settings.value("units", 1.0f).toFloat();
         params.m_lspeed = settings.value("lspeed", 0.0f).toFloat();
-        params.m_speed  = settings.value("speed",  100.0f).toFloat();
-        params.m_acc    = settings.value("acc",    3000.0f).toFloat();
-        params.m_dec    = settings.value("dec",    3000.0f).toFloat();
-        params.m_sramp  = settings.value("sramp",  10.0f).toFloat();
-        params.dir      = settings.value("dir",    0).toInt();
+        params.m_speed = settings.value("speed", 100.0f).toFloat();
+        params.m_acc = settings.value("acc", 3000.0f).toFloat();
+        params.m_dec = settings.value("dec", 3000.0f).toFloat();
+        params.m_sramp = settings.value("sramp", 10.0f).toFloat();
+        params.dir = settings.value("dir", 0).toInt();
         settings.endGroup();
 
         applyAxisParameters(axis, params);
@@ -505,6 +627,17 @@ void MotionController::stopAxis(const int axis)
     ZAux_Direct_Single_Cancel(handle, axis, 2);
 }
 
+void MotionController::updateScanRegionLength()
+{
+    if (!ui.GainRegionRadioBtn->isChecked())
+        return;
+
+    float scanLength = qAbs(m_endPoint[0] - m_startPoint[0]);   // X: 终点 - 起点
+    float stepLength = qAbs(m_endPoint[1] - m_startPoint[1]);   // Y: 终点 - 起点
+    ui.ScanLengthDoubleSpinBox->setValue(scanLength);
+    ui.StepLengthDoubleSpinBox->setValue(stepLength);
+}
+
 void MotionController::updateSingleAxisParameters(const AxisConfig& config, bool isConnected)
 {
     if (!isConnected) {
@@ -566,39 +699,7 @@ void MotionController::updateAllAxisParameters()
         updateSingleAxisParameters(m_axisList[i], isConnected);
     }
 
-    // ---------- 回零状态检查（每100ms）----------
-    // GetIfIdle: 输出 idle=0 运动中, idle=-1 停止
-    if (m_isHoming && handle)
-    {
-        int axes[] = {Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS};
-        bool allIdle = true;
-        for (int axis : axes)
-        {
-            int idle = 0;
-            ZAux_Direct_GetIfIdle(handle, axis, &idle);
-            if (idle != -1)  // 还在运动中
-            {
-                allIdle = false;
-                break;
-            }
-        }
-
-        if (allIdle)
-        {
-            // 所有轴回零完成
-            m_isHoming = false;
-            ui.OriginBtn->setText("原点回零");
-
-            // 回零完成后 DPOS + MPOS 清零
-            for (int axis : axes)
-            {
-                ZAux_Direct_SetDpos(handle, axis, 0);
-                ZAux_Direct_SetMpos(handle, axis, 0);
-            }
-
-            QMessageBox::information(this, "提示", "所有轴回零完成，原点已置零");
-        }
-    }
+    // 回零状态检查已移到 on_OriginBtn_clicked 里的 while 循环，这里不再轮询
 
     // 扫描状态机驱动（每100ms调用一次）
     if (m_scanState != SCAN_IDLE && m_scanState != SCAN_DONE)
@@ -666,19 +767,19 @@ bool MotionController::handleMotionKey(QKeyEvent* event)
     int axis = -1;
     float dir = 1.0f;
 
-    switch (event->key())
-    {
-    case Qt::Key_Up:         axis = Axis::X_AXIS;        dir =  1; break;
-    case Qt::Key_Down:       axis = Axis::X_AXIS;        dir = -1; break;
-    case Qt::Key_Left:       axis = Axis::Y_MASTER;      dir =  1; break;
-    case Qt::Key_Right:      axis = Axis::Y_MASTER;      dir = -1; break;
-    case Qt::Key_Home:       axis = Axis::Z_FRONT_AXIS;  dir =  1; break;
-    case Qt::Key_End:        axis = Axis::Z_FRONT_AXIS;  dir = -1; break;
-    case Qt::Key_PageUp:     axis = Axis::Z_BACK_AXIS;   dir =  1; break;
-    case Qt::Key_PageDown:   axis = Axis::Z_BACK_AXIS;   dir = -1; break;
-    default:
-        return false;
-    }
+	switch (event->key())
+	{
+	case Qt::Key_Up:         axis = Axis::Y_MASTER;        dir = 1; break;
+	case Qt::Key_Down:       axis = Axis::Y_MASTER;        dir = -1; break;
+	case Qt::Key_Left:       axis = Axis::X_AXIS;      dir = -1; break;
+	case Qt::Key_Right:      axis = Axis::X_AXIS;      dir = 1; break;
+	case Qt::Key_Home:       axis = Axis::Z_FRONT_AXIS;  dir = 1; break;
+	case Qt::Key_End:        axis = Axis::Z_FRONT_AXIS;  dir = -1; break;
+	case Qt::Key_PageUp:     axis = Axis::Z_BACK_AXIS;   dir = 1; break;
+	case Qt::Key_PageDown:   axis = Axis::Z_BACK_AXIS;   dir = -1; break;
+	default:
+		return false;
+	}
 
     event->accept();
 
@@ -714,9 +815,9 @@ void MotionController::startScan()
 
     // 读取起点终点
     m_scanStartX = m_startPoint[0];  // X
-    m_scanEndX   = m_endPoint[0];
+    m_scanEndX = m_endPoint[0];
     m_scanStartY = m_startPoint[1];  // Y
-    m_scanEndY   = m_endPoint[1];
+    m_scanEndY = m_endPoint[1];
 
     // 检查起点终点是否已设置
     if (m_scanStartX == 0 && m_scanEndX == 0 && m_scanStartY == 0 && m_scanEndY == 0)
@@ -758,10 +859,7 @@ void MotionController::startScan()
     // 判断模式：设置区域 vs 获取区域
     if (ui.GainRegionRadioBtn->isChecked())
     {
-        // 获取区域：自动计算扫查长度和步进长度，填回UI
-        float scanLength = qAbs(m_scanEndX - m_scanStartX);
-        ui.ScanLengthDoubleSpinBox->setValue(scanLength);
-        ui.StepLengthDoubleSpinBox->setValue(stepLength);
+        updateScanRegionLength();
     }
 
     // 启动状态机：先移动到起点
@@ -803,8 +901,8 @@ void MotionController::scanStateMachine()
             if (ui.ScanMethodComboBox->currentText() == "连续扫查")
             {
                 // 连续扫查：X/Y 两轴联动插补，从起点走斜线到终点
-                int axisList[2] = {Axis::X_AXIS, Axis::Y_MASTER};
-                float posList[2] = {m_scanEndX, m_scanEndY};
+                int axisList[2] = { Axis::X_AXIS, Axis::Y_MASTER };
+                float posList[2] = { m_scanEndX, m_scanEndY };
                 ZAux_Direct_MoveAbs(handle, 2, axisList, posList);
                 m_scanState = SCAN_CONTINUOUS;
             }
@@ -957,8 +1055,8 @@ float MotionController::estimateRemainingTime()
         float xMoveTime = estimateMoveTime(m_scanStartX - curX, xP.m_speed, xP.m_acc, xP.m_dec);
         float yMoveTime = estimateMoveTime(m_scanStartY - curY, yP.m_speed, yP.m_acc, yP.m_dec);
         remaining = qMax(xMoveTime, yMoveTime)
-                  + m_totalLines * xFullTime
-                  + (m_totalLines - 1) * yStepTime;
+            + m_totalLines * xFullTime
+            + (m_totalLines - 1) * yStepTime;
         break;
     }
 
@@ -974,8 +1072,8 @@ float MotionController::estimateRemainingTime()
 
         // 当前线剩余 + 后续线（每线 = 1次X扫查 + 1次Y步进，最后一线无Y步进）
         remaining = xRemTime
-                  + (remainingLines - 1) * xFullTime
-                  + (remainingLines - 1) * yStepTime;
+            + (remainingLines - 1) * xFullTime
+            + (remainingLines - 1) * yStepTime;
         break;
     }
 
@@ -991,8 +1089,8 @@ float MotionController::estimateRemainingTime()
 
         // 当前Y步进剩余 + 后续线
         remaining = yRemTime
-                  + (remainingLines - 1) * xFullTime
-                  + (remainingLines - 1) * yStepTime;
+            + (remainingLines - 1) * xFullTime
+            + (remainingLines - 1) * yStepTime;
         break;
     }
 
@@ -1026,16 +1124,16 @@ QString MotionController::formatRemainingTime(float seconds)
 
     int totalSec = (int)(seconds + 0.5f);
     int hours = totalSec / 3600;
-    int mins  = (totalSec % 3600) / 60;
-    int secs  = totalSec % 60;
+    int mins = (totalSec % 3600) / 60;
+    int secs = totalSec % 60;
 
     if (hours > 0)
         return QString("剩余 %1:%2:%3")
-            .arg(hours)
-            .arg(mins,  2, 10, QChar('0'))
-            .arg(secs,  2, 10, QChar('0'));
+        .arg(hours)
+        .arg(mins, 2, 10, QChar('0'))
+        .arg(secs, 2, 10, QChar('0'));
     else
         return QString("剩余 %1:%2")
-            .arg(mins, 2, 10, QChar('0'))
-            .arg(secs, 2, 10, QChar('0'));
+        .arg(mins, 2, 10, QChar('0'))
+        .arg(secs, 2, 10, QChar('0'));
 }

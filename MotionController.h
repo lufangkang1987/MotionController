@@ -58,6 +58,8 @@ private slots:
     void on_EndBtn_clicked();
     void on_BackEndBtn_clicked();
 
+    void on_GainRegionRadioBtn_clicked();   // 获取区域：点击时重新计算扫查长度和步进长度
+
     void on_StepDoubleSpinBox_valueChanged(double arg1);
 
     // Parameter settings slots for each axis
@@ -138,6 +140,7 @@ private:
 private:
     void updateSingleAxisParameters(const AxisConfig& config, bool isConnected);
     void updateAllAxisParameters();
+    void updateScanRegionLength();   // 获取区域：根据起点/终点更新扫查长度和步进长度
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;
