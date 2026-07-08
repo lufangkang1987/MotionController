@@ -1,4 +1,5 @@
 <RCC>
-    <qresource prefix="MotionController">
+    <qresource prefix="/">
+        <file>resources/logo.ico</file>
     </qresource>
 </RCC>
