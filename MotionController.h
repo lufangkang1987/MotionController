@@ -102,6 +102,11 @@ private:
     float m_startPoint[4] = { 0, 0, 0, 0 };
     float m_endPoint[4]   = { 0, 0, 0, 0 };
 
+    // ---- 指示灯状态缓存（避免每 100ms 重复写相同的 OP 值） ----
+    // OP0=报警  OP1=回零  OP2=正常
+    enum LedState { LED_OFF, LED_ALARM, LED_HOME, LED_NORMAL };
+    LedState m_lastLedState = LED_OFF;
+
     // ---- 配置持久化 ----
     void loadConfig();
     void saveConfig();
@@ -117,4 +122,5 @@ private:
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
 };

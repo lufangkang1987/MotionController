@@ -1,4 +1,5 @@
 #include "ZmcAdapter.h"
+#include <QDebug>
 
 ZmcAdapter::ZmcAdapter(QObject* parent)
     : QObject(parent)
@@ -154,6 +155,70 @@ void ZmcAdapter::zeroPosition(int axis)
     if (!m_handle) return;
     ZAux_Direct_SetDpos(m_handle, axis, 0);
     ZAux_Direct_SetMpos(m_handle, axis, 0);
+}
+
+// ==================== 输出控制 ====================
+
+void ZmcAdapter::setOutput(int port, bool on)
+{
+	if (!m_handle) return;
+	int ret1 = ZAux_Direct_SetOp(m_handle, port, on ? 1 : 0);
+	if (ret1 != 0)
+	{
+		// SetOp 失败，尝试用 DirectCommand 发 Basic 指令兜底
+		char buf[64] = {};
+		QString cmd = QString("OP(%1,%2)").arg(port).arg(on ? 1 : 0);
+		int ret2 = ZAux_DirectCommand(m_handle, cmd.toUtf8().data(), buf, sizeof(buf));
+		if (ret2 != 0)
+			qWarning() << "setOutput failed: port=" << port << "on=" << on
+			           << "SetOp ret=" << ret1 << "DirectCommand ret=" << ret2;
+	}
+}
+
+bool ZmcAdapter::getOutput(int port)
+{
+	if (!m_handle) return false;
+	uint32_t val = 0;
+	ZAux_Direct_GetOp(m_handle, port, &val);
+	return val != 0;
+}
+
+// ==================== 轴报警状态 ====================
+
+bool ZmcAdapter::isAxisAlarm(int axis)
+{
+	if (!m_handle) return false;
+
+	// 优先用 ZMC_GetAxisStates 读取结构体中的 m_AlarmState
+	struct_AxisStates states = {};
+	/*int ret = ZMC_GetAxisStates(m_handle, axis, &states);
+	if (ret == 0)
+	{
+        bool alarm = (states.m_AlarmState != 0);
+		if (alarm)
+			qDebug() << "[ALARM] axis" << axis << "m_AlarmState=" << states.m_AlarmState
+				<< "HomeState=" << states.m_HomeState
+				<< "ElDec=" << states.m_ElDecState << "ElPlus=" << states.m_ElPlusState;
+		return alarm;
+	}*/
+
+	// ZMC_GetAxisStates 不可用时，退回 ZAux_Direct_GetAxisStatus 检查 AXISSTATUS 寄存器
+	// AXISSTATUS: bit0=停止, bit1=运动, bit2=回零, bit3=等待
+	//             bit4=正向限位, bit5=反向限位, bit6=软正限, bit7=软负限（回零时可能触发，不算报警）
+	//             bit8+=跟随误差/报警等真正的异常
+	int status = 0;
+	int ret = ZAux_Direct_GetAxisStatus(m_handle, axis, &status);
+	if (ret == 0)
+	{
+		bool alarm = (status & 0xFFFFFF00) != 0;  // 只检查 bit8+ 的真正报警位
+		if (alarm)
+			qDebug() << "[ALARM] axis" << axis << "AXISSTATUS=0x" << Qt::hex << status
+				<< "alarm bits=0x" << (status & 0xFFFFFF00);
+		return alarm;
+	}
+
+	qWarning() << "isAxisAlarm failed: axis=" << axis << "ret=" << ret;
+	return false;
 }
 
 // ==================== 原点回零 ====================

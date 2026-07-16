@@ -51,6 +51,13 @@ public:
     // ---- 位置清零 ----
     void zeroPosition(int axis);
 
+    // ---- 输出控制 ----
+    void setOutput(int port, bool on);      // 设置输出口电平 (0/1)
+    bool getOutput(int port);               // 读取输出口电平
+
+    // ---- 轴报警状态 ----
+    bool isAxisAlarm(int axis);             // 轴是否处于报警状态
+
     // ---- 原点回零 ----
     void setDatumIn(int axis, int io);
     void setFwdIn(int axis, int io);

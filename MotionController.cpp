@@ -4,10 +4,13 @@
 #include "MotionController/Services/HomeService.h"
 #include "MotionController/Services/ScanService.h"
 
+#include <QDebug>
+
 #include <QMessageBox>
 #include <QSettings>
 #include <QCoreApplication>
 #include <QApplication>
+#include <QCloseEvent>
 #include <QKeyEvent>
 #include <QCheckBox>
 #include <QDoubleSpinBox>
@@ -63,7 +66,27 @@ MotionController::MotionController(QWidget* parent)
 MotionController::~MotionController()
 {
 	qApp->removeEventFilter(this);
+	m_adapter->setOutput(0, false);
+	m_adapter->setOutput(1, false);
+	m_adapter->setOutput(2, false);
+	m_lastLedState = LED_OFF;
 	saveConfig();
+}
+
+void MotionController::closeEvent(QCloseEvent* event)
+{
+	// 停止正在运行的服务
+	if (m_homeService->isHoming())  m_homeService->stopHome();
+	if (m_scanService->isRunning()) m_scanService->stopScan();
+
+	// 关闭所有输出口（OP0=报警, OP1=回零, OP2=正常）
+	m_adapter->setOutput(0, false);
+	m_adapter->setOutput(1, false);
+	m_adapter->setOutput(2, false);
+	m_lastLedState = LED_OFF;
+
+	saveConfig();
+	event->accept();
 }
 
 // ============================================================================
@@ -96,6 +119,12 @@ void MotionController::on_DisconnectBtn_clicked()
 	// 先停回零和扫描
 	if (m_homeService->isHoming())  m_homeService->stopHome();
 	if (m_scanService->isRunning()) m_scanService->stopScan();
+
+	// 断开前关闭所有指示灯
+	m_adapter->setOutput(0, false);
+	m_adapter->setOutput(1, false);
+	m_adapter->setOutput(2, false);
+	m_lastLedState = LED_OFF;
 
 	m_adapter->disconnect();
 
@@ -516,6 +545,57 @@ void MotionController::updateAllAxisParameters()
 					.arg(mins, 2, 10, QChar('0'))
 					.arg(secs, 2, 10, QChar('0')));
 		}
+	}
+
+	// 4. 根据轴状态控制指示灯（OP0=报警, OP1=回零, OP2=正常）
+	LedState newLed = LED_OFF;
+
+	if (isConnected)
+	{
+		// 检查四轴是否报警
+		int axes[] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
+		bool hasAlarm = false;
+		for (int axis : axes)
+		{
+			if (m_adapter->isAxisAlarm(axis))
+			{
+				hasAlarm = true;
+				break;
+			}
+		}
+
+		// 优先级：报警 > 回零 > 正常
+		if (hasAlarm)
+		{
+			newLed = LED_ALARM;
+		}
+		else if (m_homeService->isHoming())
+		{
+			newLed = LED_HOME;
+		}
+		else
+		{
+			newLed = LED_NORMAL;
+		}
+
+		// 回零期间诊断日志
+		if (m_homeService->isHoming())
+			qDebug() << "[LED-DIAG] isHoming=true hasAlarm=" << hasAlarm
+				<< "-> newLed=" << (hasAlarm ? "ALARM" : "HOME");
+	}
+
+	// 仅在状态变化时写输出口，减少总线通信
+	if (newLed != m_lastLedState)
+	{
+		const char* ledNames[] = { "OFF", "ALARM", "HOME", "NORMAL" };
+		qDebug() << "LED state change:" << ledNames[m_lastLedState] << "->" << ledNames[newLed]
+			<< "| OP0=" << (newLed == LED_ALARM)
+			<< "OP1=" << (newLed == LED_HOME)
+			<< "OP2=" << (newLed == LED_NORMAL);
+		m_adapter->setOutput(0, newLed == LED_ALARM);
+		m_adapter->setOutput(1, newLed == LED_HOME);
+		m_adapter->setOutput(2, newLed == LED_NORMAL);
+		m_lastLedState = newLed;
 	}
 }
 
