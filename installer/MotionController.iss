@@ -1,11 +1,11 @@
 [Setup]
 AppId={{67DC4617-2D1B-4E9C-9315-FF8FA718953F}
 AppName=MotionController
-AppVersion=1.0.0
+AppVersion=1.0.1
 DefaultDirName={autopf}\MotionController
 DefaultGroupName=MotionController
 OutputDir=..\dist
-OutputBaseFilename=MotionControllerSetup
+OutputBaseFilename=MotionControllerSetup_1.0.1
 SetupIconFile=..\resources\logo.ico
 Compression=lzma
 SolidCompression=yes
