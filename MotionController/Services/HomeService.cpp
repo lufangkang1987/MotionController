@@ -5,6 +5,7 @@
 #include <QSettings>
 #include <QCoreApplication>
 #include <QDebug>
+#include <QStringList>
 
 static QString configFilePath()
 {
@@ -16,20 +17,32 @@ HomeService::HomeService(ZmcAdapter* adapter, QObject* parent)
 {
 }
 
-// ==================== 发起回零 ====================
+// ==================== Start homing ====================
 
 void HomeService::startHome(const AxisParams* cachedParams)
 {
-    if (!m_adapter || !m_adapter->isConnected()) return;
-    if (m_state != HOME_IDLE) return;
+    if (!m_adapter || !m_adapter->isConnected())
+    {
+        qWarning() << "[HOME] start rejected: controller is not connected";
+        return;
+    }
 
-    m_state = HOME_IDLE;  // configure 阶段不算 RUNNING，防止 tick 提前介入
+    if (m_state != HOME_IDLE)
+    {
+        qWarning() << "[HOME] start rejected: home is already running";
+        return;
+    }
 
-    // 1. 读取配置
+    m_state = HOME_IDLE;  // Keep IDLE until all axes are configured, then enter RUNNING.
+
+    // 1. Read homing config.
     QSettings settings(configFilePath(), QSettings::IniFormat);
     int datumMode = settings.value("Home/Mode", 4).toInt();
+    qInfo() << "[HOME] start requested. config=" << configFilePath()
+        << "mode=" << datumMode
+        << "timeoutMs=" << kTimeoutMs;
 
-    // 2. 对四个轴下发参数并启动回零
+    // 2. Write parameters to all four axes and start homing.
     int axes[] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
 
     for (int axis : axes)
@@ -46,7 +59,7 @@ void HomeService::startHome(const AxisParams* cachedParams)
         m_adapter->setCreep(axis, 10.0f);
         m_adapter->setHomeWait(axis, 1000);
 
-        // 诊断日志
+        // Log configured axis parameters and home IO mapping.
         qDebug() << "[HOME] axis" << axis
             << "units=" << m_adapter->getParamUnits(axis)
             << "lspeed=" << m_adapter->getParamLowSpeed(axis)
@@ -58,10 +71,21 @@ void HomeService::startHome(const AxisParams* cachedParams)
             << "RevIn=" << m_adapter->getRevIn(axis)
             << "mode=" << datumMode;
 
-        // IO 口配置
+        // IO mapping.
         int datumIn = settings.value(QString("Home/DatumIn%1").arg(axis), -1).toInt();
         int fwdIn   = settings.value(QString("Home/FwdIn%1").arg(axis),   -1).toInt();
         int revIn   = settings.value(QString("Home/RevIn%1").arg(axis),   -1).toInt();
+
+        qInfo() << "[HOME] configure axis" << axis
+            << "units=" << p.m_units
+            << "lspeed=" << p.m_lspeed
+            << "speed=" << p.m_speed
+            << "acc=" << p.m_acc
+            << "dec=" << p.m_dec
+            << "sramp=" << p.m_sramp
+            << "datumIn=" << datumIn
+            << "fwdIn=" << fwdIn
+            << "revIn=" << revIn;
 
         if (fwdIn   >= 0) m_adapter->setFwdIn(axis, fwdIn);
         if (revIn   >= 0) m_adapter->setRevIn(axis, revIn);
@@ -72,17 +96,20 @@ void HomeService::startHome(const AxisParams* cachedParams)
         m_adapter->startDatum(axis, datumMode);
     }
 
-    // 3. 进入异步等待状态
+    // 3. Enter asynchronous wait state.
     m_state = HOME_RUNNING;
     m_elapsedMs = 0;
+    qInfo() << "[HOME] running";
     emit homingStarted();
 }
 
-// ==================== 停止回零 ====================
+// ==================== Stop homing ====================
 
 void HomeService::stopHome()
 {
     if (m_state != HOME_RUNNING) return;
+
+    qWarning() << "[HOME] stop requested by user";
 
     int axes[] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
     for (int axis : axes)
@@ -92,7 +119,7 @@ void HomeService::stopHome()
     emit homingStopped();
 }
 
-// ==================== 每 100ms 状态机推进 ====================
+// ==================== 100ms state machine tick ====================
 
 void HomeService::tick()
 {
@@ -100,19 +127,44 @@ void HomeService::tick()
 
     m_elapsedMs += 100;
 
-    // 超时检查
+    // Timeout check.
     if (m_elapsedMs > kTimeoutMs)
     {
         int axes[] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
+        QStringList unfinishedAxes;
+
+        for (int axis : axes)
+        {
+            uint32_t homestatus = m_adapter->getHomeStatus(axis);
+            int idle = m_adapter->getIdleState(axis);
+            float dpos = m_adapter->getPosition(axis);
+            float mspeed = m_adapter->getCurrentSpeed(axis);
+
+            qCritical() << "[HOME] timeout snapshot"
+                << "axis" << axis
+                << "homestatus=" << homestatus
+                << "idle=" << idle
+                << "dpos=" << dpos
+                << "mspeed=" << mspeed
+                << "DatumIn=" << m_adapter->getDatumIn(axis)
+                << "FwdIn=" << m_adapter->getFwdIn(axis)
+                << "RevIn=" << m_adapter->getRevIn(axis);
+
+            if (homestatus != 1)
+                unfinishedAxes << QString::number(axis);
+        }
+
+        qCritical() << "[HOME] timeout. unfinished axes:" << unfinishedAxes.join(",");
+
         for (int axis : axes)
             m_adapter->cancelAxis(axis, 2);
 
         m_state = HOME_IDLE;
-        emit homeFailed("回零超时（60秒），请检查：\n1. 原点传感器接线\n2. 回零方向是否正确\n3. 限位是否触发");
+        emit homeFailed("Home timeout after 60 seconds. Check: 1. limit/home switch wiring; 2. homing direction and IO mapping; 3. controller alarm or axis motion state.");
         return;
     }
 
-    // 检查四个轴是否全部完成
+    // Check whether all four axes have completed homing.
     int axes[] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
     bool allDone = true;
 
@@ -139,11 +191,12 @@ void HomeService::tick()
 
     if (allDone)
     {
-        // 全部完成 → 位置归零
+        // Homing completed. Zero all axis positions.
         for (int axis : axes)
             m_adapter->zeroPosition(axis);
 
         m_state = HOME_IDLE;
+        qInfo() << "[HOME] completed";
         emit homeCompleted();
     }
 }

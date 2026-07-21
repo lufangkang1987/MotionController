@@ -10,9 +10,9 @@ ParaSettings::ParaSettings(int axis, const QString& title, QWidget* parent)
     : QWidget(parent), m_axis(axis)
 {
     ui.setupUi(this);
-    setWindowTitle(title + "参数设置");
-    loadFromConfig();   // 从配置文件加载上次参数
-    updateParameters(); // 刷新到 UI
+    setWindowTitle(title + " Parameters");
+    loadFromConfig();   // Load saved parameters from config.ini.
+    updateParameters(); // Refresh UI from cached parameters.
 }
 
 ParaSettings::~ParaSettings()
@@ -22,7 +22,7 @@ ParaSettings::~ParaSettings()
 void ParaSettings::on_pushButton_clicked()
 {
     readFromUI();
-    saveToConfig();     // 保存到配置文件
+    saveToConfig();     // Save parameters to config.ini.
     emit parametersChanged(m_axis, m_params);
     close();
 }
@@ -77,10 +77,10 @@ void ParaSettings::updateParameters()
 
 void ParaSettings::readFromUI()
 {
-    // 从 UI 读取参数，并做基本范围保护
+    // Read parameters from the UI and apply basic range protection.
     m_params.m_units  = qMax(0.0001f, ui.UnitsLineEdit->text().toFloat());
     m_params.m_lspeed = qMax(0.0f,    ui.LowSpeedLineEdit->text().toFloat());
-    m_params.m_speed  = qMax(0.1f,    ui.SpeedLineEdit->text().toFloat());   // 最低 0.1
+    m_params.m_speed  = qMax(0.1f,    ui.SpeedLineEdit->text().toFloat());   // Minimum speed.
     m_params.m_acc    = qMax(1.0f,    ui.AccLineEdit->text().toFloat());
     m_params.m_dec    = qMax(1.0f,    ui.DecLineEdit->text().toFloat());
     m_params.m_sramp  = qMax(0.0f,    ui.SrampLineEdit->text().toFloat());

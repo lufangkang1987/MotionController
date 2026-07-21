@@ -3,8 +3,8 @@
 #include <QLineEdit>
 
 // ============================================================================
-// Types.h — 项目共享类型定义
-// 被 MotionController 和 Services 层共同引用，避免循环依赖
+// Types.h - shared project type definitions.
+// Used by MotionController and service layers to avoid circular dependencies.
 // ============================================================================
 
 enum Axis
@@ -26,11 +26,11 @@ struct AxisConfig
 
 enum ScanState
 {
-    SCAN_IDLE,           // 空闲
-    SCAN_MOVE_TO_START,  // 移动到起点（栅格扫查）
-    SCAN_FORWARD,        // X正向扫查中（栅格扫查）
-    SCAN_REVERSE,        // X反向扫查中（栅格扫查）
-    SCAN_STEP,           // Y步进中（栅格扫查）
-    SCAN_CONTINUOUS,     // 连续扫查中（X/Y联动斜线）
-    SCAN_DONE            // 扫描完成
+    SCAN_IDLE,           // Idle.
+    SCAN_MOVE_TO_START,  // Moving to the saved scan start point.
+    SCAN_FORWARD,        // Scanning in positive X direction.
+    SCAN_REVERSE,        // Scanning in negative X direction.
+    SCAN_STEP,           // Stepping Y to the next raster line.
+    SCAN_CONTINUOUS,     // Continuous scan with linked X/Y movement.
+    SCAN_DONE            // Scan finished.
 };

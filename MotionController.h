@@ -12,9 +12,9 @@ class ScanService;
 class QTimer;
 
 // ============================================================================
-// MotionController — UI 层（纯信号槽 + 定时器 + 配置持久化）
-// 运动控制逻辑委托给 AxisService / HomeService / ScanService
-// 硬件通信委托给 ZmcAdapter
+// MotionController - UI layer for signal wiring, timers, and config persistence.
+// Motion-control logic is delegated to AxisService, HomeService, and ScanService.
+// Hardware communication is delegated to ZmcAdapter.
 // ============================================================================
 
 class MotionController : public QMainWindow
@@ -26,15 +26,15 @@ public:
     ~MotionController();
 
 private slots:
-    // ---- 连接 ----
+    // ---- Connection ----
     void on_ConnectBtn_clicked();
     void on_DisconnectBtn_clicked();
 
-    // ---- 检测操作 ----
+    // ---- Inspection operations ----
     void on_OriginBtn_clicked();
     void on_StartInspectBtn_clicked();
 
-    // ---- 扫查计划 ----
+    // ---- Scan plan ----
     void on_StartPointBtn_clicked();
     void on_BackStartPointBtn_clicked();
     void on_EndBtn_clicked();
@@ -42,54 +42,56 @@ private slots:
     void on_GainRegionRadioBtn_clicked();
     void on_StepDoubleSpinBox_valueChanged(double arg1);
 
-    // ---- 四轴参数按钮 ----
+    // ---- Four-axis parameter buttons ----
     void on_XParaBtn_clicked();
     void on_YParaBtn_clicked();
     void on_ZQParaBtn_clicked();
     void on_ZHParaBtn_clicked();
 
-    // ---- 四轴清零 ----
+    // ---- Four-axis position clear ----
     void on_XClearBtn_clicked();
     void on_YClearBtn_clicked();
     void on_ZQClearBtn_clicked();
     void on_ZHClearBtn_clicked();
 
-    // ---- 四轴正转 ----
+    // ---- Four-axis positive motion ----
     void on_XNormalBtn_clicked();
     void on_YNormalBtn_clicked();
     void on_ZQNormalBtn_clicked();
     void on_ZHNormalBtn_clicked();
 
-    // ---- 四轴反转 ----
+    // ---- Four-axis negative motion ----
     void on_XReverseBtn_clicked();
     void on_YReverseBtn_clicked();
     void on_ZQReverseBtn_clicked();
     void on_ZHReverseBtn_clicked();
 
-    // ---- 四轴停止 ----
+    // ---- Four-axis stop ----
     void on_XStopBtn_clicked();
     void on_YStopBtn_clicked();
     void on_ZQStopBtn_clicked();
     void on_ZHStopBtn_clicked();
 
-    // ---- 参数变更回调 ----
+    // ---- Parameter change callback ----
     void applyAxisParameters(int axis, const AxisParams& params);
 
-    // ---- HomeService 回调 ----
+    // ---- HomeService callbacks ----
     void onHomeStarted();
     void onHomeStopped();
     void onHomeCompleted();
     void onHomeFailed(const QString& reason);
 
-    // ---- ScanService 回调 ----
+    // ---- ScanService callbacks ----
     void onScanStarted();
+    void onScanPaused();
+    void onScanResumed();
     void onScanStopped();
     void onScanCompleted();
 
 private:
     Ui::MotionControllerClass ui;
 
-    // ---- 适配器 & 服务（构造函数注入） ----
+    // ---- Adapter and services, injected through constructors. ----
     ZmcAdapter*  m_adapter     = nullptr;
     AxisService* m_axisService = nullptr;
     HomeService* m_homeService = nullptr;
@@ -97,27 +99,33 @@ private:
 
     QTimer* updateTimer = nullptr;
     AxisConfig m_axisList[4];
-    AxisParams m_axisParams[5];   // 缓存各轴参数
+    AxisParams m_axisParams[5];   // Cached parameters for each axis.
 
     float m_startPoint[4] = { 0, 0, 0, 0 };
     float m_endPoint[4]   = { 0, 0, 0, 0 };
 
-    // ---- 指示灯状态缓存（避免每 100ms 重复写相同的 OP 值） ----
-    // OP0=报警  OP1=回零  OP2=正常
+    // ---- Cached LED state. Avoids writing the same OP values every 100ms. ----
+    // LED output ports are loaded from config.ini [Led].
     enum LedState { LED_OFF, LED_ALARM, LED_HOME, LED_NORMAL };
     LedState m_lastLedState = LED_OFF;
+    LedState m_scanLedOverride = LED_OFF;
+    int m_alarmLedOp = 0;
+    int m_homeLedOp = 1;
+    int m_normalLedOp = 2;
+    int m_buzzerOp = 3;
+    int m_buzzerDurationMs = 1000;
 
-    // ---- 配置持久化 ----
+    // ---- Config persistence ----
     void loadConfig();
     void saveConfig();
 
-    // ---- 定时器驱动 ----
+    // ---- Timer-driven updates ----
     void updateAllAxisParameters();
 
-    // ---- 扫查计划辅助 ----
+    // ---- Scan plan helpers ----
     void updateScanRegionLength();
 
-    // ---- 键盘 ----
+    // ---- Keyboard ----
     bool handleMotionKey(QKeyEvent* event);
 
 protected:

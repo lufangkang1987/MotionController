@@ -9,7 +9,7 @@ ScanService::ScanService(ZmcAdapter* adapter, QObject* parent)
 {
 }
 
-// ==================== 启动扫描 ====================
+// ==================== Start scan ====================
 
 void ScanService::startScan(bool isContinuous,
                              const float* startPoint,
@@ -19,7 +19,7 @@ void ScanService::startScan(bool isContinuous,
                              const AxisParams* cachedParams)
 {
     if (!m_adapter || !m_adapter->isConnected()) return;
-    if (isRunning()) return;
+    if (hasActiveScan()) return;
 
     m_params       = cachedParams;
     m_isContinuous = isContinuous;
@@ -31,9 +31,10 @@ void ScanService::startScan(bool isContinuous,
     m_totalLines   = totalLines;
     m_currentLine  = 0;
     m_forward      = true;
+    m_paused       = false;
     m_remainingTime = 0;
 
-    // 先移动到起点
+    // Move to the saved scan start point first.
     m_scanState = SCAN_MOVE_TO_START;
     m_adapter->moveAbsolute(Axis::X_AXIS, m_scanStartX);
     m_adapter->moveAbsolute(Axis::Y_MASTER, m_scanStartY);
@@ -41,15 +42,37 @@ void ScanService::startScan(bool isContinuous,
     emit scanStarted();
 }
 
+void ScanService::pauseScan()
+{
+    if (!isRunning()) return;
+
+    m_adapter->cancelAxis(Axis::X_AXIS, 2);
+    m_adapter->cancelAxis(Axis::Y_MASTER, 2);
+    m_paused = true;
+    emit scanPaused();
+}
+
+void ScanService::resumeScan()
+{
+    if (!m_paused) return;
+
+    m_paused = false;
+    resumeCurrentMove();
+    emit scanResumed();
+}
+
 void ScanService::stopScan()
 {
+    if (!hasActiveScan()) return;
+
     m_scanState = SCAN_IDLE;
+    m_paused = false;
     m_adapter->cancelAxis(Axis::X_AXIS, 2);
     m_adapter->cancelAxis(Axis::Y_MASTER, 2);
     emit scanStopped();
 }
 
-// ==================== 状态机 tick ====================
+// ==================== State machine tick ====================
 
 void ScanService::tick()
 {
@@ -67,7 +90,7 @@ void ScanService::tick()
         {
             if (m_isContinuous)
             {
-                // 连续扫查：X/Y 两轴联动插补
+                // Continuous scan: move X/Y together to the end point.
                 int axisList[2] = { Axis::X_AXIS, Axis::Y_MASTER };
                 float posList[2] = { m_scanEndX, m_scanEndY };
                 m_adapter->moveMultiAbs(2, axisList, posList);
@@ -75,7 +98,7 @@ void ScanService::tick()
             }
             else
             {
-                // 栅格扫查：开始第一线 X 正向
+                // Raster scan: start the first line in the positive X direction.
                 m_currentLine = 0;
                 m_forward = true;
                 m_scanState = SCAN_FORWARD;
@@ -147,11 +170,49 @@ void ScanService::tick()
         break;
     }
 
-    // 更新剩余时间
+    // Update remaining time estimate.
     updateRemainingTime();
 }
 
-// ==================== 剩余时间估算 ====================
+void ScanService::resumeCurrentMove()
+{
+    switch (m_scanState)
+    {
+    case SCAN_MOVE_TO_START:
+        m_adapter->moveAbsolute(Axis::X_AXIS, m_scanStartX);
+        m_adapter->moveAbsolute(Axis::Y_MASTER, m_scanStartY);
+        break;
+
+    case SCAN_CONTINUOUS:
+    {
+        int axisList[2] = { Axis::X_AXIS, Axis::Y_MASTER };
+        float posList[2] = { m_scanEndX, m_scanEndY };
+        m_adapter->moveMultiAbs(2, axisList, posList);
+        break;
+    }
+
+    case SCAN_FORWARD:
+        m_adapter->moveAbsolute(Axis::X_AXIS, m_scanEndX);
+        break;
+
+    case SCAN_REVERSE:
+        m_adapter->moveAbsolute(Axis::X_AXIS, m_scanStartX);
+        break;
+
+    case SCAN_STEP:
+    {
+        float ratio = (m_totalLines > 1) ? (float)m_currentLine / (m_totalLines - 1) : 1.0f;
+        float yTarget = m_scanStartY + (m_scanEndY - m_scanStartY) * ratio;
+        m_adapter->moveAbsolute(Axis::Y_MASTER, yTarget);
+        break;
+    }
+
+    default:
+        break;
+    }
+}
+
+// ==================== Remaining time estimate ==================== 
 
 float ScanService::estimateMoveTime(float distance, float speed, float acc, float dec)
 {

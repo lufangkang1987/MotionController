@@ -14,10 +14,90 @@
 #include <QKeyEvent>
 #include <QCheckBox>
 #include <QDoubleSpinBox>
+#include <QFile>
+#include <QFileInfo>
+#include <QTextStream>
 #include <QTimer>
 
+static void ensureConfigFileExists()
+{
+	const QString path = configFilePath();
+	if (QFileInfo::exists(path))
+		return;
+
+	QFile file(path);
+	if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+		return;
+
+	QTextStream out(&file);
+	out << "[Home]\n";
+	out << "Mode=4\n";
+	out << "FwdIn0=1\n";
+	out << "RevIn0=0\n";
+	out << "DatumIn0=2\n";
+	out << "FwdIn1=4\n";
+	out << "RevIn1=3\n";
+	out << "DatumIn1=5\n";
+	out << "FwdIn3=7\n";
+	out << "RevIn3=6\n";
+	out << "DatumIn3=8\n";
+	out << "FwdIn4=10\n";
+	out << "RevIn4=9\n";
+	out << "DatumIn4=11\n";
+	out << "\n";
+	out << "[Axis0]\n";
+	out << "units=1000\n";
+	out << "lspeed=0\n";
+	out << "speed=20\n";
+	out << "dec=2000\n";
+	out << "sramp=10\n";
+	out << "dir=0\n";
+	out << "acc=2000\n";
+	out << "\n";
+	out << "[Scan]\n";
+	out << "Step=10\n";
+	out << "\n";
+	out << "[Led]\n";
+	out << "RedOp=0\n";
+	out << "YellowOp=1\n";
+	out << "GreenOp=2\n";
+	out << "BuzzerOp=3\n";
+	out << "BuzzerDurationMs=1000\n";
+	out << "\n";
+	out << "[Axis1]\n";
+	out << "units=1000\n";
+	out << "lspeed=0\n";
+	out << "speed=20\n";
+	out << "dec=2000\n";
+	out << "sramp=10\n";
+	out << "dir=0\n";
+	out << "acc=2000\n";
+	out << "\n";
+	out << "[Axis3]\n";
+	out << "units=1000\n";
+	out << "lspeed=0\n";
+	out << "speed=20\n";
+	out << "dec=2000\n";
+	out << "sramp=10\n";
+	out << "dir=0\n";
+	out << "acc=2000\n";
+	out << "\n";
+	out << "[Axis4]\n";
+	out << "units=1000\n";
+	out << "lspeed=0\n";
+	out << "speed=20\n";
+	out << "dec=2000\n";
+	out << "sramp=10\n";
+	out << "dir=0\n";
+	out << "acc=2000\n";
+	out << "\n";
+	out << "[Connection]\n";
+	out << "IP=192.168.0.11\n";
+	qInfo() << "[CONFIG] default config.ini created:" << path;
+}
+
 // ============================================================================
-// 构造 / 析构
+// Construction and destruction
 // ============================================================================
 
 MotionController::MotionController(QWidget* parent)
@@ -25,72 +105,79 @@ MotionController::MotionController(QWidget* parent)
 {
 	ui.setupUi(this);
 
-	// ---- 初始化适配器层 ----
+	// ---- Initialize adapter layer ----
 	m_adapter = new ZmcAdapter(this);
 
-	// ---- 初始化服务层（构造函数注入） ----
+	// ---- Initialize service layer ----
 	m_axisService = new AxisService(m_adapter, this);
 	m_homeService = new HomeService(m_adapter, this);
 	m_scanService = new ScanService(m_adapter, this);
 
-	// ---- 安装事件过滤器（键盘快捷键） ----
+	// ---- Install keyboard event filter ----
 	qApp->installEventFilter(this);
 
-	// ---- 定时器（100ms 周期） ----
+	// ---- Start 100ms update timer ----
 	updateTimer = new QTimer(this);
 	updateTimer->setInterval(100);
 	connect(updateTimer, &QTimer::timeout, this, &MotionController::updateAllAxisParameters);
 	updateTimer->start();
 
-	// ---- 绑定 AxisConfig ----
+	// ---- Bind axis status UI fields ----
 	m_axisList[0] = { Axis::X_AXIS,       ui.XStateLineEdit,   ui.XLocateLineEdit,   ui.XSpeedLineEdit };
 	m_axisList[1] = { Axis::Y_MASTER,     ui.YStateLineEdit,   ui.YLocateLineEdit,   ui.YSpeedLineEdit };
 	m_axisList[2] = { Axis::Z_FRONT_AXIS, ui.ZQStateLineEdit,  ui.ZQLocateLineEdit,  ui.ZQSpeedLineEdit };
 	m_axisList[3] = { Axis::Z_BACK_AXIS,  ui.ZHStateLineEdit,  ui.ZHLocateLineEdit,  ui.ZHSpeedLineEdit };
 
-	// ---- 绑定 HomeService 信号 ----
+	// ---- Connect HomeService signals ----
 	connect(m_homeService, &HomeService::homingStarted, this, &MotionController::onHomeStarted);
 	connect(m_homeService, &HomeService::homingStopped, this, &MotionController::onHomeStopped);
 	connect(m_homeService, &HomeService::homeCompleted, this, &MotionController::onHomeCompleted);
 	connect(m_homeService, &HomeService::homeFailed, this, &MotionController::onHomeFailed);
 
-	// ---- 绑定 ScanService 信号 ----
+	// ---- Connect ScanService signals ----
 	connect(m_scanService, &ScanService::scanStarted, this, &MotionController::onScanStarted);
+	connect(m_scanService, &ScanService::scanPaused, this, &MotionController::onScanPaused);
+	connect(m_scanService, &ScanService::scanResumed, this, &MotionController::onScanResumed);
 	connect(m_scanService, &ScanService::scanStopped, this, &MotionController::onScanStopped);
 	connect(m_scanService, &ScanService::scanCompleted, this, &MotionController::onScanCompleted);
 
-	// ---- 加载上次配置 ----
+	// ---- Ensure config exists, then load settings ----
+	ensureConfigFileExists();
 	loadConfig();
 }
 
 MotionController::~MotionController()
 {
 	qApp->removeEventFilter(this);
-	m_adapter->setOutput(0, false);
-	m_adapter->setOutput(1, false);
-	m_adapter->setOutput(2, false);
+	m_adapter->setOutput(m_alarmLedOp, false);
+	m_adapter->setOutput(m_homeLedOp, false);
+	m_adapter->setOutput(m_normalLedOp, false);
+	m_adapter->setOutput(m_buzzerOp, false);
 	m_lastLedState = LED_OFF;
+	m_scanLedOverride = LED_OFF;
 	saveConfig();
 }
 
 void MotionController::closeEvent(QCloseEvent* event)
 {
-	// 停止正在运行的服务
+	// Stop active services before closing.
 	if (m_homeService->isHoming())  m_homeService->stopHome();
-	if (m_scanService->isRunning()) m_scanService->stopScan();
+	if (m_scanService->hasActiveScan()) m_scanService->stopScan();
 
-	// 关闭所有输出口（OP0=报警, OP1=回零, OP2=正常）
-	m_adapter->setOutput(0, false);
-	m_adapter->setOutput(1, false);
-	m_adapter->setOutput(2, false);
+	// Turn off all outputs before closing.
+	m_adapter->setOutput(m_alarmLedOp, false);
+	m_adapter->setOutput(m_homeLedOp, false);
+	m_adapter->setOutput(m_normalLedOp, false);
+	m_adapter->setOutput(m_buzzerOp, false);
 	m_lastLedState = LED_OFF;
+	m_scanLedOverride = LED_OFF;
 
 	saveConfig();
 	event->accept();
 }
 
 // ============================================================================
-// 连接管理
+// Connection management
 // ============================================================================
 
 void MotionController::on_ConnectBtn_clicked()
@@ -110,126 +197,144 @@ void MotionController::on_ConnectBtn_clicked()
 	QSettings settings(configFilePath(), QSettings::IniFormat);
 	settings.setValue("Connection/IP", ip);
 
-	// 连接成功后下发全部参数
+	// Apply all cached axis parameters after connecting.
 	m_axisService->applyParametersFromConfig(m_axisParams);
 }
 
 void MotionController::on_DisconnectBtn_clicked()
 {
-	// 先停回零和扫描
+	// Stop homing and scanning before disconnecting.
 	if (m_homeService->isHoming())  m_homeService->stopHome();
-	if (m_scanService->isRunning()) m_scanService->stopScan();
+	if (m_scanService->hasActiveScan()) m_scanService->stopScan();
 
-	// 断开前关闭所有指示灯
-	m_adapter->setOutput(0, false);
-	m_adapter->setOutput(1, false);
-	m_adapter->setOutput(2, false);
+	// Turn off all outputs before disconnecting.
+	m_adapter->setOutput(m_alarmLedOp, false);
+	m_adapter->setOutput(m_homeLedOp, false);
+	m_adapter->setOutput(m_normalLedOp, false);
+	m_adapter->setOutput(m_buzzerOp, false);
 	m_lastLedState = LED_OFF;
+	m_scanLedOverride = LED_OFF;
 
 	m_adapter->disconnect();
 
 	ui.ConnectBtn->setEnabled(true);
 	ui.DisconnectBtn->setEnabled(false);
 	ui.IPComboBox->setEnabled(true);
-	ui.OriginBtn->setText("原点回零");
-	ui.StartInspectBtn->setText("开始检测");
+	ui.OriginBtn->setText("Home");
+	ui.StartInspectBtn->setText("Start Scan");
 }
 
 // ============================================================================
-// 原点回零（委托给 HomeService 异步状态机）
+// Home operation, delegated to HomeService.
 // ============================================================================
 
 void MotionController::on_OriginBtn_clicked()
 {
 	if (!m_adapter->isConnected())
 	{
-		QMessageBox::warning(this, "提示", "请先连接控制器");
+		QMessageBox::warning(this, "Warning", "Connect controller first.");
 		return;
 	}
 
-	// 正在回零中 → 停止
+	// Stop homing if it is already running.
 	if (m_homeService->isHoming())
 	{
 		m_homeService->stopHome();
 		return;
 	}
 
-	// 检查各轴是否空闲
+	// Check that every axis is idle before homing.
 	int axes[] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
 	for (int axis : axes)
 	{
 		int idle = m_adapter->getIdleState(axis);
 		if (idle != -1)
 		{
-			QMessageBox::warning(this, "提示",
-				QString("轴 %1 正在运动中，请先停止").arg(axis));
+			QMessageBox::warning(this, "Warning",
+				QString("Axis %1 is moving. Stop it first.").arg(axis));
 			return;
 		}
 	}
 
-	// 先下发参数，再启动异步回零
+	// Apply parameters first, then start asynchronous homing.
 	m_axisService->applyParametersFromConfig(m_axisParams);
 	m_homeService->startHome(m_axisParams);
 }
 
 void MotionController::onHomeStarted()
 {
-	ui.OriginBtn->setText("停止回零");
+	ui.OriginBtn->setText("Stop Home");
 }
 
 void MotionController::onHomeStopped()
 {
-	ui.OriginBtn->setText("原点回零");
+	ui.OriginBtn->setText("Home");
 }
 
 void MotionController::onHomeCompleted()
 {
-	ui.OriginBtn->setText("原点回零");
-	QMessageBox::information(this, "提示", "所有轴回零完成，原点已置零");
+	ui.OriginBtn->setText("Home");
+	QMessageBox::information(this, "Info", "Home completed.");
 }
 
 void MotionController::onHomeFailed(const QString& reason)
 {
-	ui.OriginBtn->setText("原点回零");
-	QMessageBox::critical(this, "回零失败", reason);
+	ui.OriginBtn->setText("Home");
+	QMessageBox::critical(this, "Home Failed", reason);
 }
 
 // ============================================================================
-// 开始检测 / 停止检测（委托给 ScanService）
+// Scan start, pause, resume, and stop operations.
 // ============================================================================
 
 void MotionController::on_StartInspectBtn_clicked()
 {
 	if (!m_adapter->isConnected())
 	{
-		QMessageBox::warning(this, "提示", "请先连接控制器");
+		QMessageBox::warning(this, "Warning", "Connect controller first.");
+		return;
+	}
+
+	if (m_scanService->isPaused())
+	{
+		auto ret = QMessageBox::question(this, "Confirm Resume Scan",
+			"Scan is paused. Resume from the paused position?",
+			QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+		if (ret != QMessageBox::Yes)
+			return;
+
+		m_scanService->resumeScan();
 		return;
 	}
 
 	if (m_scanService->isRunning())
 	{
-		m_scanService->stopScan();
+		auto ret = QMessageBox::warning(this, "Confirm Pause Scan",
+			"Scan is running. Pause the current scan?",
+			QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+		if (ret != QMessageBox::Yes)
+			return;
+
+		m_scanService->pauseScan();
 		return;
 	}
 
-	// 读取 UI 参数
-	bool isContinuous = (ui.ScanMethodComboBox->currentText() == "连续扫查");
+	bool isContinuous = (ui.ScanMethodComboBox->currentIndex() == 1);
 
 	if (m_startPoint[0] == 0 && m_endPoint[0] == 0 &&
 		m_startPoint[1] == 0 && m_endPoint[1] == 0)
 	{
-		QMessageBox::warning(this, "提示", "请先设置起点和终点");
+		QMessageBox::warning(this, "Warning", "Set start and end points first.");
 		return;
 	}
 
 	float stepGap = ui.StepGapDoubleSpinBox->value();
 	if (!isContinuous && stepGap <= 0)
 	{
-		QMessageBox::warning(this, "提示", "步进间隔必须大于0");
+		QMessageBox::warning(this, "Warning", "Step gap must be greater than 0.");
 		return;
 	}
 
-	// 栅格扫查：计算总步数
 	int totalLines = 1;
 	if (!isContinuous)
 	{
@@ -238,39 +343,76 @@ void MotionController::on_StartInspectBtn_clicked()
 		if (totalLines < 1) totalLines = 1;
 	}
 
+	auto ret = QMessageBox::question(this, "Confirm Start Scan",
+		"Start this scan? Yellow light will turn on. After pause, you can resume or use Back To Start to reset the scan.",
+		QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+	if (ret != QMessageBox::Yes)
+		return;
+
 	m_scanService->startScan(isContinuous, m_startPoint, m_endPoint,
 		stepGap, totalLines, m_axisParams);
 }
-
 void MotionController::onScanStarted()
 {
-	ui.StartInspectBtn->setText("停止检测");
+	m_scanLedOverride = LED_OFF;
+	qInfo() << "[SCAN] started: yellow light on";
+	ui.StartInspectBtn->setText("Pause Scan");
+}
+
+void MotionController::onScanPaused()
+{
+	m_scanLedOverride = LED_ALARM;
+	qWarning() << "[SCAN] paused: red light on";
+	ui.StartInspectBtn->setText("Resume Scan");
+}
+
+void MotionController::onScanResumed()
+{
+	m_scanLedOverride = LED_OFF;
+	qInfo() << "[SCAN] resumed: yellow light on";
+	ui.StartInspectBtn->setText("Pause Scan");
 }
 
 void MotionController::onScanStopped()
 {
-	ui.StartInspectBtn->setText("开始检测");
+	m_scanLedOverride = LED_ALARM;
+	qWarning() << "[SCAN] stopped: red light on";
+	ui.StartInspectBtn->setText("Start Scan");
 	ui.LeftTime->setText("");
 }
 
 void MotionController::onScanCompleted()
 {
-	ui.StartInspectBtn->setText("开始检测");
-	ui.LeftTime->setText("扫描完成");
+	m_scanLedOverride = LED_NORMAL;
+	qInfo() << "[SCAN] completed: green light on, buzzer pulse"
+		<< "buzzerOp=" << m_buzzerOp
+		<< "durationMs=" << m_buzzerDurationMs;
+
+	if (m_adapter->isConnected() && m_buzzerOp >= 0 && m_buzzerDurationMs > 0)
+	{
+		m_adapter->setOutput(m_buzzerOp, true);
+		QTimer::singleShot(m_buzzerDurationMs, this, [this]() {
+			if (m_adapter && m_adapter->isConnected())
+				m_adapter->setOutput(m_buzzerOp, false);
+		});
+	}
+
+	ui.StartInspectBtn->setText("Start Scan");
+	ui.LeftTime->setText("Scan Completed");
 }
 
 // ============================================================================
-// 扫查计划
+// Scan point controls.
 // ============================================================================
 
 void MotionController::on_StartPointBtn_clicked()
 {
 	if (!m_adapter->isConnected())
 	{
-		QMessageBox::warning(this, "提示", "请先连接控制器");
+		QMessageBox::warning(this, "Warning", "Connect controller first.");
 		return;
 	}
-	auto ret = QMessageBox::warning(this, "提示", "是否设置当前点为起点？", QMessageBox::StandardButton::Ok | QMessageBox::StandardButton::No, QMessageBox::StandardButton::No);
+	auto ret = QMessageBox::warning(this, "Confirm Start Point", "Save current position as start point?", QMessageBox::StandardButton::Ok | QMessageBox::StandardButton::No, QMessageBox::StandardButton::No);
 	if (ret != QMessageBox::StandardButton::Ok)
 		return;
 	int axes[4] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
@@ -290,10 +432,10 @@ void MotionController::on_EndBtn_clicked()
 {
 	if (!m_adapter->isConnected())
 	{
-		QMessageBox::warning(this, "提示", "请先连接控制器");
+		QMessageBox::warning(this, "Warning", "Connect controller first.");
 		return;
 	}
-	auto ret = QMessageBox::warning(this, "提示", "是否设置当前点为终点？", QMessageBox::StandardButton::Ok, QMessageBox::StandardButton::No);
+	auto ret = QMessageBox::warning(this, "Confirm End Point", "Save current position as end point?", QMessageBox::StandardButton::Ok | QMessageBox::StandardButton::No, QMessageBox::StandardButton::No);
 	if (ret != QMessageBox::StandardButton::Ok)
 		return;
 	int axes[4] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
@@ -313,21 +455,49 @@ void MotionController::on_BackStartPointBtn_clicked()
 {
 	if (!m_adapter->isConnected())
 	{
-		QMessageBox::warning(this, "提示", "请先连接控制器");
+		QMessageBox::warning(this, "Warning", "Connect controller first.");
 		return;
 	}
+
+	if (m_scanService->isPaused())
+	{
+		auto ret = QMessageBox::warning(this, "Confirm Back To Start",
+			"Scan is paused. Moving back to start will stop and reset this scan. Continue?",
+			QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+		if (ret != QMessageBox::Yes)
+			return;
+
+		m_scanService->stopScan();
+		m_scanLedOverride = LED_ALARM;
+	}
+	else
+	{
+		auto ret = QMessageBox::question(this, "Confirm Back To Start",
+			"Move to the saved start point?",
+			QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+		if (ret != QMessageBox::Yes)
+			return;
+	}
+
 	int axes[4] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
 	for (int i = 0; i < 4; i++)
 		m_adapter->moveAbsolute(axes[i], m_startPoint[i]);
-}
 
+	qInfo() << "[SCAN] move back to start point";
+}
 void MotionController::on_BackEndBtn_clicked()
 {
 	if (!m_adapter->isConnected())
 	{
-		QMessageBox::warning(this, "提示", "请先连接控制器");
+		QMessageBox::warning(this, "Warning", "Connect controller first.");
 		return;
 	}
+	auto ret = QMessageBox::question(this, "Confirm Back To End",
+		"Move to the saved end point?",
+		QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+	if (ret != QMessageBox::Yes)
+		return;
+
 	int axes[4] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
 	for (int i = 0; i < 4; i++)
 		m_adapter->moveAbsolute(axes[i], m_endPoint[i]);
@@ -354,12 +524,12 @@ void MotionController::updateScanRegionLength()
 }
 
 // ============================================================================
-// 轴参数设置（ParaSettings 弹窗）
+// Axis parameter dialogs.
 // ============================================================================
 
 void MotionController::on_XParaBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	ParaSettings* dlg = new ParaSettings(Axis::X_AXIS, "X Axis", nullptr);
 	dlg->setAttribute(Qt::WA_DeleteOnClose);
 	connect(dlg, &ParaSettings::parametersChanged, this, &MotionController::applyAxisParameters);
@@ -368,7 +538,7 @@ void MotionController::on_XParaBtn_clicked()
 
 void MotionController::on_YParaBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	ParaSettings* dlg = new ParaSettings(Axis::Y_MASTER, "Y Axis", nullptr);
 	dlg->setAttribute(Qt::WA_DeleteOnClose);
 	connect(dlg, &ParaSettings::parametersChanged, this, &MotionController::applyAxisParameters);
@@ -377,7 +547,7 @@ void MotionController::on_YParaBtn_clicked()
 
 void MotionController::on_ZQParaBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	ParaSettings* dlg = new ParaSettings(Axis::Z_FRONT_AXIS, "Z Front Axis", nullptr);
 	dlg->setAttribute(Qt::WA_DeleteOnClose);
 	connect(dlg, &ParaSettings::parametersChanged, this, &MotionController::applyAxisParameters);
@@ -386,7 +556,7 @@ void MotionController::on_ZQParaBtn_clicked()
 
 void MotionController::on_ZHParaBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	ParaSettings* dlg = new ParaSettings(Axis::Z_BACK_AXIS, "Z Back Axis", nullptr);
 	dlg->setAttribute(Qt::WA_DeleteOnClose);
 	connect(dlg, &ParaSettings::parametersChanged, this, &MotionController::applyAxisParameters);
@@ -400,113 +570,113 @@ void MotionController::applyAxisParameters(int axis, const AxisParams& params)
 }
 
 // ============================================================================
-// 四轴运动控制（委托给 AxisService）
+// Manual axis commands delegated to AxisService.
 // ============================================================================
 
-// ---- 清零 ----
+// ---- Clear axis positions ----
 void MotionController::on_XClearBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->clearPosition(Axis::X_AXIS);
 }
 void MotionController::on_YClearBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->clearPosition(Axis::Y_MASTER);
 }
 void MotionController::on_ZQClearBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->clearPosition(Axis::Z_FRONT_AXIS);
 }
 void MotionController::on_ZHClearBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->clearPosition(Axis::Z_BACK_AXIS);
 }
 
-// ---- 正转 ----
+// ---- Move axes in positive direction ----
 void MotionController::on_XNormalBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->movePositive(Axis::X_AXIS, ui.checkBox_6->isChecked(), ui.XdoubleSpinBox->value());
 }
 void MotionController::on_YNormalBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->movePositive(Axis::Y_MASTER, ui.checkBox_7->isChecked(), ui.YdoubleSpinBox->value());
 }
 void MotionController::on_ZQNormalBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->movePositive(Axis::Z_FRONT_AXIS, ui.checkBox_8->isChecked(), ui.ZQdoubleSpinBox->value());
 }
 void MotionController::on_ZHNormalBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->movePositive(Axis::Z_BACK_AXIS, ui.checkBox_10->isChecked(), ui.ZHdoubleSpinBox->value());
 }
 
-// ---- 反转 ----
+// ---- Move axes in negative direction ----
 void MotionController::on_XReverseBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->moveNegative(Axis::X_AXIS, ui.checkBox_6->isChecked(), ui.XdoubleSpinBox->value());
 }
 void MotionController::on_YReverseBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->moveNegative(Axis::Y_MASTER, ui.checkBox_7->isChecked(), ui.YdoubleSpinBox->value());
 }
 void MotionController::on_ZQReverseBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->moveNegative(Axis::Z_FRONT_AXIS, ui.checkBox_8->isChecked(), ui.ZQdoubleSpinBox->value());
 }
 void MotionController::on_ZHReverseBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->moveNegative(Axis::Z_BACK_AXIS, ui.checkBox_10->isChecked(), ui.ZHdoubleSpinBox->value());
 }
 
-// ---- 停止 ----
+// ---- Stop axes ----
 void MotionController::on_XStopBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->stop(Axis::X_AXIS);
 }
 void MotionController::on_YStopBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->stop(Axis::Y_MASTER);
 }
 void MotionController::on_ZQStopBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->stop(Axis::Z_FRONT_AXIS);
 }
 void MotionController::on_ZHStopBtn_clicked()
 {
-	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "提示", "请先连接控制器"); return; }
+	if (!m_adapter->isConnected()) { QMessageBox::warning(this, "Warning", "Connect controller first."); return; }
 	m_axisService->stop(Axis::Z_BACK_AXIS);
 }
 
 // ============================================================================
-// 100ms 定时器 — 状态轮询 + 服务驱动
+// 100ms update loop: refresh axis status, drive services, and update LEDs.
 // ============================================================================
 
 void MotionController::updateAllAxisParameters()
 {
 	bool isConnected = m_adapter->isConnected();
 
-	// 1. 刷新四轴 UI 状态
+	// 1. Refresh connection and axis status UI.
 	for (int i = 0; i < 4; ++i)
 	{
 		const AxisConfig& cfg = m_axisList[i];
 
 		if (!isConnected)
 		{
-			cfg.stateLineEdit->setText("未连接");
+			cfg.stateLineEdit->setText("Disconnected");
 			cfg.locateLineEdit->setText("0.00");
 			cfg.speedLineEdit->setText("0.00");
 			continue;
@@ -518,10 +688,10 @@ void MotionController::updateAllAxisParameters()
 		cfg.speedLineEdit->setText(QString::number(s.speed, 'f', 2));
 	}
 
-	// 2. 驱动 HomeService 异步状态机
+	// 2. Drive HomeService state machine.
 	m_homeService->tick();
 
-	// 3. 驱动 ScanService 状态机 + 更新剩余时间
+	// 3. Drive ScanService state machine and remaining time display.
 	m_scanService->tick();
 
 	if (m_scanService->isRunning())
@@ -536,23 +706,23 @@ void MotionController::updateAllAxisParameters()
 			int mins = (totalSec % 3600) / 60;
 			int secs = totalSec % 60;
 			if (hours > 0)
-				ui.LeftTime->setText(QString("剩余 %1:%2:%3")
+                ui.LeftTime->setText(QString("%1:%2:%3")
 					.arg(hours)
 					.arg(mins, 2, 10, QChar('0'))
 					.arg(secs, 2, 10, QChar('0')));
 			else
-				ui.LeftTime->setText(QString("剩余 %1:%2")
+                ui.LeftTime->setText(QString("%1:%2")
 					.arg(mins, 2, 10, QChar('0'))
 					.arg(secs, 2, 10, QChar('0')));
 		}
 	}
 
-	// 4. 根据轴状态控制指示灯（OP0=报警, OP1=回零, OP2=正常）
+	// 4. Update LEDs from axis and workflow state.
 	LedState newLed = LED_OFF;
 
 	if (isConnected)
 	{
-		// 检查四轴是否报警
+		// Check whether any axis is in alarm.
 		int axes[] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
 		bool hasAlarm = false;
 		for (int axis : axes)
@@ -564,7 +734,7 @@ void MotionController::updateAllAxisParameters()
 			}
 		}
 
-		// 优先级：报警 > 回零 > 正常
+		// Priority: alarm > homing/scanning > scan override > normal.
 		if (hasAlarm)
 		{
 			newLed = LED_ALARM;
@@ -573,34 +743,42 @@ void MotionController::updateAllAxisParameters()
 		{
 			newLed = LED_HOME;
 		}
+		else if (m_scanService->isRunning())
+		{
+			newLed = LED_HOME;
+		}
+		else if (m_scanLedOverride != LED_OFF)
+		{
+			newLed = m_scanLedOverride;
+		}
 		else
 		{
 			newLed = LED_NORMAL;
 		}
 
-		// 回零期间诊断日志
+		// Diagnostic log while homing.
 		if (m_homeService->isHoming())
 			qDebug() << "[LED-DIAG] isHoming=true hasAlarm=" << hasAlarm
 				<< "-> newLed=" << (hasAlarm ? "ALARM" : "HOME");
 	}
 
-	// 仅在状态变化时写输出口，减少总线通信
+	// Write output ports only when the LED state changes.
 	if (newLed != m_lastLedState)
 	{
 		const char* ledNames[] = { "OFF", "ALARM", "HOME", "NORMAL" };
 		qDebug() << "LED state change:" << ledNames[m_lastLedState] << "->" << ledNames[newLed]
-			<< "| OP0=" << (newLed == LED_ALARM)
-			<< "OP1=" << (newLed == LED_HOME)
-			<< "OP2=" << (newLed == LED_NORMAL);
-		m_adapter->setOutput(0, newLed == LED_ALARM);
-		m_adapter->setOutput(1, newLed == LED_HOME);
-		m_adapter->setOutput(2, newLed == LED_NORMAL);
+			<< "| redOp" << m_alarmLedOp << "=" << (newLed == LED_ALARM)
+			<< "yellowOp" << m_homeLedOp << "=" << (newLed == LED_HOME)
+			<< "greenOp" << m_normalLedOp << "=" << (newLed == LED_NORMAL);
+		m_adapter->setOutput(m_alarmLedOp, newLed == LED_ALARM);
+		m_adapter->setOutput(m_homeLedOp, newLed == LED_HOME);
+		m_adapter->setOutput(m_normalLedOp, newLed == LED_NORMAL);
 		m_lastLedState = newLed;
 	}
 }
 
 // ============================================================================
-// 配置持久化
+// Config persistence.
 // ============================================================================
 
 void MotionController::loadConfig()
@@ -613,7 +791,25 @@ void MotionController::loadConfig()
 	double step = settings.value("Scan/Step", 10.0).toDouble();
 	ui.StepDoubleSpinBox->setValue(step);
 
-	// 预加载各轴参数到缓存（未连接时只缓存不下发）
+	m_alarmLedOp = settings.value("Led/RedOp", settings.value("Led/AlarmOp", 0)).toInt();
+	m_homeLedOp = settings.value("Led/YellowOp", settings.value("Led/HomeOp", 1)).toInt();
+	m_normalLedOp = settings.value("Led/GreenOp", settings.value("Led/NormalOp", 2)).toInt();
+	m_buzzerOp = settings.value("Led/BuzzerOp", 3).toInt();
+	m_buzzerDurationMs = settings.value("Led/BuzzerDurationMs", 1000).toInt();
+	settings.setValue("Led/RedOp", m_alarmLedOp);
+	settings.setValue("Led/YellowOp", m_homeLedOp);
+	settings.setValue("Led/GreenOp", m_normalLedOp);
+	settings.setValue("Led/BuzzerOp", m_buzzerOp);
+	settings.setValue("Led/BuzzerDurationMs", m_buzzerDurationMs);
+	settings.sync();
+	qInfo() << "[LED] config"
+		<< "redOp=" << m_alarmLedOp
+		<< "yellowOp=" << m_homeLedOp
+		<< "greenOp=" << m_normalLedOp
+		<< "buzzerOp=" << m_buzzerOp
+		<< "buzzerDurationMs=" << m_buzzerDurationMs;
+
+	// Preload cached axis parameters from config.
 	m_axisService->applyParametersFromConfig(m_axisParams);
 }
 
@@ -622,15 +818,20 @@ void MotionController::saveConfig()
 	QSettings settings(configFilePath(), QSettings::IniFormat);
 	settings.setValue("Connection/IP", ui.IPComboBox->currentText());
 	settings.setValue("Scan/Step", ui.StepDoubleSpinBox->value());
+	settings.setValue("Led/RedOp", m_alarmLedOp);
+	settings.setValue("Led/YellowOp", m_homeLedOp);
+	settings.setValue("Led/GreenOp", m_normalLedOp);
+	settings.setValue("Led/BuzzerOp", m_buzzerOp);
+	settings.setValue("Led/BuzzerDurationMs", m_buzzerDurationMs);
 }
 
 // ============================================================================
-// 键盘快捷键（简化：仅 eventFilter，移除 keyPressEvent 冗余）
+// Keyboard shortcuts, handled through eventFilter only.
 // ============================================================================
 
 bool MotionController::eventFilter(QObject* watched, QEvent* event)
 {
-	// 只处理本窗口内的事件
+	// Only handle events from widgets in this window.
 	if (event->type() == QEvent::KeyPress && watched->isWidgetType())
 	{
 		QWidget* widget = static_cast<QWidget*>(watched);
@@ -665,11 +866,11 @@ bool MotionController::handleMotionKey(QKeyEvent* event)
 
 	event->accept();
 
-	// 总是消费运动按键，同时阻止自动重复和未连接时执行
+	// Consume motion keys, and ignore autorepeat or disconnected execution.
 	if (!m_adapter->isConnected() || event->isAutoRepeat())
 		return true;
 
-	// 键盘始终寸动模式
+	// Keyboard jog mode uses the step distance from the UI.
 	QDoubleSpinBox* stepSpin = nullptr;
 	switch (axis)
 	{

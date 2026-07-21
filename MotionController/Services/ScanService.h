@@ -7,8 +7,8 @@ class ZmcAdapter;
 struct AxisParams;
 
 // ============================================================================
-// ScanService — 扫描状态机服务层
-// 从 MotionController 抽离栅格扫查/连续扫查 + 剩余时间估算
+// ScanService - scan state machine service layer.
+// Extracts raster/continuous scan logic and remaining-time estimation from MotionController.
 // ============================================================================
 
 class ScanService : public QObject
@@ -18,27 +18,33 @@ class ScanService : public QObject
 public:
     explicit ScanService(ZmcAdapter* adapter, QObject* parent = nullptr);
 
-    bool isRunning() const { return m_scanState != SCAN_IDLE && m_scanState != SCAN_DONE; }
+    bool isRunning() const { return !m_paused && m_scanState != SCAN_IDLE && m_scanState != SCAN_DONE; }
+    bool isPaused() const { return m_paused; }
+    bool hasActiveScan() const { return m_paused || isRunning(); }
     ScanState state() const { return m_scanState; }
 
-    // ---- 启动/停止 ----
-    void startScan(bool isContinuous,                       // 连续扫查 vs 栅格扫查
+    // ---- Start, pause, resume, and stop ----
+    void startScan(bool isContinuous,                       // Continuous scan vs raster scan.
                    const float* startPoint,                 // [4]: X/Y/ZQ/ZH
                    const float* endPoint,
-                   float stepGap,                           // 步进间隔
+                   float stepGap,                           // Raster step gap.
                    int   totalLines,
-                   const AxisParams* cachedParams);         // 供剩余时间估算
+                   const AxisParams* cachedParams);         // Used for remaining-time estimation.
+    void pauseScan();
+    void resumeScan();
     void stopScan();
 
-    // 每 100ms 驱动状态机
+    // Drive the state machine every 100ms.
     void tick();
 
-    // ---- 剩余时间 ----
+    // ---- Remaining time ----
     float getRemainingTime() const { return m_remainingTime; }
 
 signals:
     void scanCompleted();
     void scanStarted();
+    void scanPaused();
+    void scanResumed();
     void scanStopped();
 
 private:
@@ -46,7 +52,7 @@ private:
 
     ScanState m_scanState = SCAN_IDLE;
 
-    // 扫描参数
+    // Scan parameters.
     float m_scanStartX = 0, m_scanEndX = 0;
     float m_scanStartY = 0, m_scanEndY = 0;
     float m_stepGap = 1;
@@ -54,12 +60,14 @@ private:
     int   m_currentLine = 0;
     bool  m_forward = true;
     bool  m_isContinuous = false;
+    bool  m_paused = false;
 
     float m_remainingTime = 0;
 
-    const AxisParams* m_params = nullptr;  // 不持有，仅引用
+    const AxisParams* m_params = nullptr;  // Borrowed pointer, not owned.
 
-    // ---- 内部辅助 ----
+    // ---- Internal helpers ----
     float estimateMoveTime(float distance, float speed, float acc, float dec);
     void  updateRemainingTime();
+    void  resumeCurrentMove();
 };

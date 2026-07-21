@@ -15,16 +15,16 @@ AxisService::AxisService(ZmcAdapter* adapter, QObject* parent)
 {
 }
 
-// ==================== 运动操作 ====================
+// ==================== Motion operations ====================
 
 void AxisService::movePositive(int axis, bool isContinuous, float stepValue)
 {
     if (!m_adapter || !m_adapter->isConnected()) return;
 
     if (isContinuous)
-        m_adapter->moveVelocity(axis, 1);       // 正向连续点动
+        m_adapter->moveVelocity(axis, 1);       // Positive continuous motion.
     else
-        m_adapter->moveRelative(axis, stepValue); // 正向寸动
+        m_adapter->moveRelative(axis, stepValue); // Positive fixed-distance jog.
 }
 
 void AxisService::moveNegative(int axis, bool isContinuous, float stepValue)
@@ -32,9 +32,9 @@ void AxisService::moveNegative(int axis, bool isContinuous, float stepValue)
     if (!m_adapter || !m_adapter->isConnected()) return;
 
     if (isContinuous)
-        m_adapter->moveVelocity(axis, 0);        // 反向连续点动
+        m_adapter->moveVelocity(axis, 0);        // Negative continuous motion.
     else
-        m_adapter->moveRelative(axis, -stepValue); // 反向寸动
+        m_adapter->moveRelative(axis, -stepValue); // Negative fixed-distance jog.
 }
 
 void AxisService::stop(int axis)
@@ -49,7 +49,7 @@ void AxisService::clearPosition(int axis)
     m_adapter->zeroPosition(axis);
 }
 
-// ==================== 参数管理 ====================
+// ==================== Parameter writes ====================
 
 void AxisService::applyParameters(int axis, const AxisParams& params)
 {
@@ -84,7 +84,7 @@ void AxisService::applyParametersFromConfig(AxisParams* outCache)
         params.dir      = settings.value("dir",    0).toInt();
         settings.endGroup();
 
-        // 回写到调用方缓存（未连接时仅缓存不下发）
+        // Write values back to the caller cache. If disconnected, keep them cached only.
         if (outCache)
             outCache[axis] = params;
 
@@ -92,7 +92,7 @@ void AxisService::applyParametersFromConfig(AxisParams* outCache)
     }
 }
 
-// ==================== 状态读取 ====================
+// ==================== Status reads ====================
 
 AxisService::AxisStatus AxisService::getStatus(int axis, const AxisParams& params)
 {
@@ -100,7 +100,7 @@ AxisService::AxisStatus AxisService::getStatus(int axis, const AxisParams& param
 
     if (!m_adapter || !m_adapter->isConnected())
     {
-        s.stateText = "未连接";
+        s.stateText = "Disconnected";
         return s;
     }
 
@@ -108,27 +108,27 @@ AxisService::AxisStatus AxisService::getStatus(int axis, const AxisParams& param
     s.speed    = m_adapter->getCurrentSpeed(axis);
     s.idle     = m_adapter->getIdleState(axis);
 
-    // 方向反转显示
+    // Apply direction reversal for displayed position and speed.
     if (params.dir == 1)
     {
         s.position = -s.position;
         s.speed    = -s.speed;
     }
 
-    // 状态文本
+    // Status text.
     if (s.idle == -1)
-        s.stateText = "停止";
+        s.stateText = "Stopped";
     else if (s.idle == 0)
     {
         if (s.speed > 0.001f)
-            s.stateText = "正转";
+            s.stateText = "Moving +";
         else if (s.speed < -0.001f)
-            s.stateText = "反转";
+            s.stateText = "Moving -";
         else
-            s.stateText = "运行";
+            s.stateText = "Idle";
     }
     else
-        s.stateText = "未知";
+        s.stateText = "Unknown";
 
     return s;
 }

@@ -7,8 +7,8 @@
 #include "zauxdll2.h"
 
 // ============================================================================
-// ZmcAdapter — 正运动控制 ZMC 库适配器层
-// 封装所有 ZAux_* 库函数调用，对外暴露语义化方法
+// ZmcAdapter - adapter layer for the ZMC motion-control library.
+// Wraps ZAux_* calls and exposes semantic controller operations.
 // ============================================================================
 
 class ZmcAdapter : public QObject
@@ -19,24 +19,24 @@ public:
     explicit ZmcAdapter(QObject* parent = nullptr);
     ~ZmcAdapter();
 
-    // ---- 连接管理 ----
+    // ---- Connection management ----
     bool connect(const QString& ip);
     void disconnect();
     bool isConnected() const { return m_handle != nullptr; }
 
-    // ---- 位置/速度读取 ----
+    // ---- Status reads ----
     float getPosition(int axis);
-    float getCurrentSpeed(int axis);       // VpSpeed（实际运行速度）
-    int   getIdleState(int axis);          // -1=停止, 0=运动中
+    float getCurrentSpeed(int axis);       // Current measured axis speed.
+    int   getIdleState(int axis);          // -1=stopped, 0=moving.
 
-    // ---- 运动控制 ----
-    void moveAbsolute(int axis, float pos); // 绝对定位
-    void moveRelative(int axis, float dist);// 相对运动（寸动）
-    void moveVelocity(int axis, int dir);   // 连续速度运动 (1=正, 0=反)
-    void moveMultiAbs(int count, const int* axes, const float* positions); // 多轴联动
-    void cancelAxis(int axis, int mode = 2); // 减速停止
+    // ---- Motion control ----
+    void moveAbsolute(int axis, float pos); // Absolute move.
+    void moveRelative(int axis, float dist);// Relative move.
+    void moveVelocity(int axis, int dir);   // Velocity move, 1=positive, 0=negative.
+    void moveMultiAbs(int count, const int* axes, const float* positions); // Multi-axis absolute move.
+    void cancelAxis(int axis, int mode = 2); // Cancel motion.
 
-    // ---- 轴参数设置 ----
+    // ---- Parameter writes ----
     void setAxisType(int axis, int type);
     void setUnits(int axis, float val);
     void setLowSpeed(int axis, float val);
@@ -48,25 +48,25 @@ public:
     void setHomeWait(int axis, int ms);
     void setInvertStep(int axis, int invert);
 
-    // ---- 位置清零 ----
+    // ---- Position control ----
     void zeroPosition(int axis);
 
-    // ---- 输出控制 ----
-    void setOutput(int port, bool on);      // 设置输出口电平 (0/1)
-    bool getOutput(int port);               // 读取输出口电平
+    // ---- Output ports ----
+    void setOutput(int port, bool on);      // Set output port state.
+    bool getOutput(int port);               // Read output port state.
 
-    // ---- 轴报警状态 ----
-    bool isAxisAlarm(int axis);             // 轴是否处于报警状态
+    // ---- Axis alarm ----
+    bool isAxisAlarm(int axis);             // Return whether the axis has a real alarm.
 
-    // ---- 原点回零 ----
+    // ---- Homing control ----
     void setDatumIn(int axis, int io);
     void setFwdIn(int axis, int io);
     void setRevIn(int axis, int io);
-    void trigger();                         // 使 IN 口配置生效
-    void startDatum(int axis, int mode);    // 启动回零
-    uint32_t getHomeStatus(int axis);       // 0=未完成, 1=回零成功
+    void trigger();                         // Trigger pending IN configuration changes.
+    void startDatum(int axis, int mode);    // Start homing.
+    uint32_t getHomeStatus(int axis);       // 0=not complete, 1=homing complete.
 
-    // ---- 参数回读 ----
+    // ---- Parameter reads ----
     float getParamUnits(int axis);
     float getParamSpeed(int axis);
     float getParamAccel(int axis);

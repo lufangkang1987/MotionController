@@ -11,11 +11,15 @@ ZmcAdapter::~ZmcAdapter()
     disconnect();
 }
 
-// ==================== 连接管理 ====================
+// ==================== Connection management ====================
 
 bool ZmcAdapter::connect(const QString& ip)
 {
     int ret = ZAux_OpenEth(ip.toUtf8().data(), &m_handle);
+    if (ret == ERR_OK)
+        qInfo() << "[ZMC] connected:" << ip;
+    else
+        qWarning() << "[ZMC] connect failed:" << ip << "ret=" << ret;
     return (ret == ERR_OK);
 }
 
@@ -23,12 +27,13 @@ void ZmcAdapter::disconnect()
 {
     if (m_handle)
     {
+        qInfo() << "[ZMC] disconnected";
         ZAux_Close(m_handle);
         m_handle = nullptr;
     }
 }
 
-// ==================== 位置/速度读取 ====================
+// ==================== Status reads ====================
 
 float ZmcAdapter::getPosition(int axis)
 {
@@ -54,7 +59,7 @@ int ZmcAdapter::getIdleState(int axis)
     return idle;
 }
 
-// ==================== 运动控制 ====================
+// ==================== Motion control ====================
 
 void ZmcAdapter::moveAbsolute(int axis, float pos)
 {
@@ -83,10 +88,12 @@ void ZmcAdapter::moveMultiAbs(int count, const int* axes, const float* positions
 void ZmcAdapter::cancelAxis(int axis, int mode)
 {
     if (!m_handle) return;
-    ZAux_Direct_Single_Cancel(m_handle, axis, mode);
+    int ret = ZAux_Direct_Single_Cancel(m_handle, axis, mode);
+    if (ret != 0)
+        qWarning() << "[ZMC] cancelAxis failed: axis=" << axis << "mode=" << mode << "ret=" << ret;
 }
 
-// ==================== 轴参数设置 ====================
+// ==================== Parameter writes ====================
 
 void ZmcAdapter::setAxisType(int axis, int type)
 {
@@ -148,7 +155,7 @@ void ZmcAdapter::setInvertStep(int axis, int invert)
     ZAux_Direct_SetInvertStep(m_handle, axis, invert);
 }
 
-// ==================== 位置清零 ====================
+// ==================== Position control ====================
 
 void ZmcAdapter::zeroPosition(int axis)
 {
@@ -157,7 +164,7 @@ void ZmcAdapter::zeroPosition(int axis)
     ZAux_Direct_SetMpos(m_handle, axis, 0);
 }
 
-// ==================== 输出控制 ====================
+// ==================== Output ports ====================
 
 void ZmcAdapter::setOutput(int port, bool on)
 {
@@ -165,7 +172,7 @@ void ZmcAdapter::setOutput(int port, bool on)
 	int ret1 = ZAux_Direct_SetOp(m_handle, port, on ? 1 : 0);
 	if (ret1 != 0)
 	{
-		// SetOp 失败，尝试用 DirectCommand 发 Basic 指令兜底
+        // SetOp may fail on some controllers, so fall back to DirectCommand Basic output assignment.
 		char buf[64] = {};
 		QString cmd = QString("OP(%1,%2)").arg(port).arg(on ? 1 : 0);
 		int ret2 = ZAux_DirectCommand(m_handle, cmd.toUtf8().data(), buf, sizeof(buf));
@@ -183,13 +190,13 @@ bool ZmcAdapter::getOutput(int port)
 	return val != 0;
 }
 
-// ==================== 轴报警状态 ====================
+// ==================== Axis alarm ====================
 
 bool ZmcAdapter::isAxisAlarm(int axis)
 {
 	if (!m_handle) return false;
 
-	// 优先用 ZMC_GetAxisStates 读取结构体中的 m_AlarmState
+    // Prefer ZMC_GetAxisStates and read m_AlarmState from the returned structure.
 	struct_AxisStates states = {};
 	/*int ret = ZMC_GetAxisStates(m_handle, axis, &states);
 	if (ret == 0)
@@ -202,15 +209,15 @@ bool ZmcAdapter::isAxisAlarm(int axis)
 		return alarm;
 	}*/
 
-	// ZMC_GetAxisStates 不可用时，退回 ZAux_Direct_GetAxisStatus 检查 AXISSTATUS 寄存器
-	// AXISSTATUS: bit0=停止, bit1=运动, bit2=回零, bit3=等待
-	//             bit4=正向限位, bit5=反向限位, bit6=软正限, bit7=软负限（回零时可能触发，不算报警）
-	//             bit8+=跟随误差/报警等真正的异常
+    // Fall back to ZAux_Direct_GetAxisStatus and check the AXISSTATUS register.
+    // AXISSTATUS: bit0=stopped, bit1=moving, bit2=homing, bit3=waiting.
+    //             bit4=positive limit, bit5=negative limit, bit6=soft positive limit, bit7=soft negative limit.
+    //             bit8+ indicates following error, alarm, or other real fault states.
 	int status = 0;
 	int ret = ZAux_Direct_GetAxisStatus(m_handle, axis, &status);
 	if (ret == 0)
 	{
-		bool alarm = (status & 0xFFFFFF00) != 0;  // 只检查 bit8+ 的真正报警位
+        bool alarm = (status & 0xFFFFFF00) != 0;  // Treat bit8+ as real alarm/fault states.
 		if (alarm)
 			qDebug() << "[ALARM] axis" << axis << "AXISSTATUS=0x" << Qt::hex << status
 				<< "alarm bits=0x" << (status & 0xFFFFFF00);
@@ -221,47 +228,61 @@ bool ZmcAdapter::isAxisAlarm(int axis)
 	return false;
 }
 
-// ==================== 原点回零 ====================
+// ==================== Homing control ====================
 
 void ZmcAdapter::setDatumIn(int axis, int io)
 {
     if (!m_handle) return;
-    ZAux_Direct_SetDatumIn(m_handle, axis, io);
+    int ret = ZAux_Direct_SetDatumIn(m_handle, axis, io);
+    if (ret != 0)
+        qWarning() << "[ZMC] setDatumIn failed: axis=" << axis << "io=" << io << "ret=" << ret;
 }
 
 void ZmcAdapter::setFwdIn(int axis, int io)
 {
     if (!m_handle) return;
-    ZAux_Direct_SetFwdIn(m_handle, axis, io);
+    int ret = ZAux_Direct_SetFwdIn(m_handle, axis, io);
+    if (ret != 0)
+        qWarning() << "[ZMC] setFwdIn failed: axis=" << axis << "io=" << io << "ret=" << ret;
 }
 
 void ZmcAdapter::setRevIn(int axis, int io)
 {
     if (!m_handle) return;
-    ZAux_Direct_SetRevIn(m_handle, axis, io);
+    int ret = ZAux_Direct_SetRevIn(m_handle, axis, io);
+    if (ret != 0)
+        qWarning() << "[ZMC] setRevIn failed: axis=" << axis << "io=" << io << "ret=" << ret;
 }
 
 void ZmcAdapter::trigger()
 {
     if (!m_handle) return;
-    ZAux_Trigger(m_handle);
+    int ret = ZAux_Trigger(m_handle);
+    if (ret != 0)
+        qWarning() << "[ZMC] trigger failed: ret=" << ret;
 }
 
 void ZmcAdapter::startDatum(int axis, int mode)
 {
     if (!m_handle) return;
-    ZAux_Direct_Single_Datum(m_handle, axis, mode);
+    int ret = ZAux_Direct_Single_Datum(m_handle, axis, mode);
+    if (ret == 0)
+        qInfo() << "[ZMC] startDatum: axis=" << axis << "mode=" << mode;
+    else
+        qWarning() << "[ZMC] startDatum failed: axis=" << axis << "mode=" << mode << "ret=" << ret;
 }
 
 uint32_t ZmcAdapter::getHomeStatus(int axis)
 {
     if (!m_handle) return 0;
     uint32_t status = 0;
-    ZAux_Direct_GetHomeStatus(m_handle, axis, &status);
+    int ret = ZAux_Direct_GetHomeStatus(m_handle, axis, &status);
+    if (ret != 0)
+        qWarning() << "[ZMC] getHomeStatus failed: axis=" << axis << "ret=" << ret;
     return status;
 }
 
-// ==================== 参数回读 ====================
+// ==================== Parameter reads ====================
 
 float ZmcAdapter::getParamUnits(int axis)
 {

@@ -7,8 +7,8 @@ class ZmcAdapter;
 struct AxisParams;
 
 // ============================================================================
-// AxisService — 单轴运动操作服务层
-// 封装正转/反转(连续+寸动)/停止/清零/参数下发/状态读取
+// AxisService - service layer for single-axis motion operations.
+// Wraps forward/reverse motion, jogging, stop, clear position, parameter writes, and status reads.
 // ============================================================================
 
 class AxisService : public QObject
@@ -18,25 +18,25 @@ class AxisService : public QObject
 public:
     explicit AxisService(ZmcAdapter* adapter, QObject* parent = nullptr);
 
-    // ---- 运动操作 (已封装"连续"复选框 + 定长"逻辑) ----
+    // ---- Motion operations. Wraps continuous mode and fixed-distance jog logic. ----
     void movePositive(int axis, bool isContinuous, float stepValue);
     void moveNegative(int axis, bool isContinuous, float stepValue);
     void stop(int axis);
     void clearPosition(int axis);
 
-    // ---- 参数管理 ----
+    // ---- Parameter writes ----
     void applyParameters(int axis, const AxisParams& params);
-    void applyParametersFromConfig(AxisParams* outCache);  // 从 INI 批量读参并下发，同时回写缓存
+    void applyParametersFromConfig(AxisParams* outCache);  // Load INI parameters into cache and write them if connected.
 
-    // ---- 状态读取 (含 dir 方向反转) ----
+    // ---- Status reads, including direction reversal from config. ----
     struct AxisStatus {
         float position = 0;
         float speed = 0;
-        int   idle = -1;  // -1=停止, 0=运动中
-        QString stateText; // "停止"/"正转"/"反转"/"运行"/"未连接"
+        int   idle = -1;  // -1=stopped, 0=moving.
+        QString stateText; // Disconnected / Stopped / Moving + / Moving - / Idle / Unknown.
     };
     AxisStatus getStatus(int axis, const AxisParams& params);
 
 private:
-    ZmcAdapter* m_adapter;  // 构造函数注入
+    ZmcAdapter* m_adapter;  // Motion controller adapter.
 };

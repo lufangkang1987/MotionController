@@ -15,7 +15,7 @@ struct AxisParams
     int dir = 0; // 0: normal, 1: reverse
 };
 
-// config.ini 文件路径（exe 同目录）
+// config.ini path next to the executable.
 QString configFilePath();
 
 class ParaSettings : public QWidget
