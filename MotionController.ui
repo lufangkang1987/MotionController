@@ -113,6 +113,22 @@
           </property>
           <layout class="QGridLayout" name="gridLayout_6">
            <item row="0" column="5">
+            <widget class="QPushButton" name="StopInspectBtn">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">background-color: rgb(220, 80, 80);</string>
+             </property>
+             <property name="text">
+              <string>停止检测</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="6">
             <spacer name="horizontalSpacer">
              <property name="orientation">
               <enum>Qt::Orientation::Horizontal</enum>

@@ -19,83 +19,6 @@
 #include <QTextStream>
 #include <QTimer>
 
-static void ensureConfigFileExists()
-{
-	const QString path = configFilePath();
-	if (QFileInfo::exists(path))
-		return;
-
-	QFile file(path);
-	if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
-		return;
-
-	QTextStream out(&file);
-	out << "[Home]\n";
-	out << "Mode=4\n";
-	out << "FwdIn0=1\n";
-	out << "RevIn0=0\n";
-	out << "DatumIn0=2\n";
-	out << "FwdIn1=4\n";
-	out << "RevIn1=3\n";
-	out << "DatumIn1=5\n";
-	out << "FwdIn3=7\n";
-	out << "RevIn3=6\n";
-	out << "DatumIn3=8\n";
-	out << "FwdIn4=10\n";
-	out << "RevIn4=9\n";
-	out << "DatumIn4=11\n";
-	out << "\n";
-	out << "[Axis0]\n";
-	out << "units=1000\n";
-	out << "lspeed=0\n";
-	out << "speed=20\n";
-	out << "dec=2000\n";
-	out << "sramp=10\n";
-	out << "dir=0\n";
-	out << "acc=2000\n";
-	out << "\n";
-	out << "[Scan]\n";
-	out << "Step=10\n";
-	out << "\n";
-	out << "[Led]\n";
-	out << "RedOp=0\n";
-	out << "YellowOp=1\n";
-	out << "GreenOp=2\n";
-	out << "BuzzerOp=3\n";
-	out << "BuzzerDurationMs=1000\n";
-	out << "\n";
-	out << "[Axis1]\n";
-	out << "units=1000\n";
-	out << "lspeed=0\n";
-	out << "speed=20\n";
-	out << "dec=2000\n";
-	out << "sramp=10\n";
-	out << "dir=0\n";
-	out << "acc=2000\n";
-	out << "\n";
-	out << "[Axis3]\n";
-	out << "units=1000\n";
-	out << "lspeed=0\n";
-	out << "speed=20\n";
-	out << "dec=2000\n";
-	out << "sramp=10\n";
-	out << "dir=0\n";
-	out << "acc=2000\n";
-	out << "\n";
-	out << "[Axis4]\n";
-	out << "units=1000\n";
-	out << "lspeed=0\n";
-	out << "speed=20\n";
-	out << "dec=2000\n";
-	out << "sramp=10\n";
-	out << "dir=0\n";
-	out << "acc=2000\n";
-	out << "\n";
-	out << "[Connection]\n";
-	out << "IP=192.168.0.11\n";
-	qInfo() << "[CONFIG] default config.ini created:" << path;
-}
-
 // ============================================================================
 // Construction and destruction
 // ============================================================================
@@ -220,8 +143,10 @@ void MotionController::on_DisconnectBtn_clicked()
 	ui.ConnectBtn->setEnabled(true);
 	ui.DisconnectBtn->setEnabled(false);
 	ui.IPComboBox->setEnabled(true);
-	ui.OriginBtn->setText("Home");
-	ui.StartInspectBtn->setText("Start Scan");
+	ui.OriginBtn->setText(QStringLiteral("原点回零"));
+	ui.StartInspectBtn->setText(QStringLiteral("开始检测"));
+	ui.StopInspectBtn->setText(QStringLiteral("停止检测"));
+	m_scanResetPending = false;
 }
 
 // ============================================================================
@@ -263,23 +188,23 @@ void MotionController::on_OriginBtn_clicked()
 
 void MotionController::onHomeStarted()
 {
-	ui.OriginBtn->setText("Stop Home");
+	ui.OriginBtn->setText(QStringLiteral("原点回零"));
 }
 
 void MotionController::onHomeStopped()
 {
-	ui.OriginBtn->setText("Home");
+	ui.OriginBtn->setText(QStringLiteral("原点回零"));
 }
 
 void MotionController::onHomeCompleted()
 {
-	ui.OriginBtn->setText("Home");
+	ui.OriginBtn->setText(QStringLiteral("原点回零"));
 	QMessageBox::information(this, "Info", "Home completed.");
 }
 
 void MotionController::onHomeFailed(const QString& reason)
 {
-	ui.OriginBtn->setText("Home");
+	ui.OriginBtn->setText(QStringLiteral("原点回零"));
 	QMessageBox::critical(this, "Home Failed", reason);
 }
 
@@ -352,32 +277,87 @@ void MotionController::on_StartInspectBtn_clicked()
 	m_scanService->startScan(isContinuous, m_startPoint, m_endPoint,
 		stepGap, totalLines, m_axisParams);
 }
+
+void MotionController::on_StopInspectBtn_clicked()
+{
+	if (!m_adapter->isConnected())
+	{
+		QMessageBox::warning(this, "Warning", "Connect controller first.");
+		return;
+	}
+
+	if (m_scanResetPending)
+	{
+		auto ret = QMessageBox::question(this, "Confirm Reset Scan",
+			"Move back to the saved start point and return scan to standby?",
+			QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+		if (ret != QMessageBox::Yes)
+			return;
+
+		int axes[4] = { Axis::X_AXIS, Axis::Y_MASTER, Axis::Z_FRONT_AXIS, Axis::Z_BACK_AXIS };
+		for (int i = 0; i < 4; i++)
+			m_adapter->moveAbsolute(axes[i], m_startPoint[i]);
+
+		m_scanResetPending = false;
+		m_scanLedOverride = LED_ALARM;
+		ui.StartInspectBtn->setText(QStringLiteral("开始检测"));
+		ui.StopInspectBtn->setText(QStringLiteral("停止检测"));
+		ui.LeftTime->setText("");
+		qInfo() << "[SCAN] reset requested: move back to start point and enter standby";
+		return;
+	}
+
+	if (!m_scanService->hasActiveScan())
+	{
+		QMessageBox::information(this, "Info", "No active scan to stop.");
+		return;
+	}
+
+	auto ret = QMessageBox::warning(this, "Confirm Stop Scan",
+		"Stop the current scan? The stop button will become Reset.",
+		QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+	if (ret != QMessageBox::Yes)
+		return;
+
+	m_scanResetPending = true;
+	m_scanService->stopScan();
+	ui.StartInspectBtn->setText(QStringLiteral("开始检测"));
+	ui.StopInspectBtn->setText(QStringLiteral("重置"));
+	ui.LeftTime->setText("");
+	qWarning() << "[SCAN] stop requested: reset is pending";
+}
+
 void MotionController::onScanStarted()
 {
 	m_scanLedOverride = LED_OFF;
+	m_scanResetPending = false;
 	qInfo() << "[SCAN] started: yellow light on";
-	ui.StartInspectBtn->setText("Pause Scan");
+	ui.StartInspectBtn->setText(QStringLiteral("暂停检测"));
+	ui.StopInspectBtn->setText(QStringLiteral("停止检测"));
 }
 
 void MotionController::onScanPaused()
 {
 	m_scanLedOverride = LED_ALARM;
 	qWarning() << "[SCAN] paused: red light on";
-	ui.StartInspectBtn->setText("Resume Scan");
+	ui.StartInspectBtn->setText(QStringLiteral("恢复检测"));
+	ui.StopInspectBtn->setText(QStringLiteral("停止检测"));
 }
 
 void MotionController::onScanResumed()
 {
 	m_scanLedOverride = LED_OFF;
 	qInfo() << "[SCAN] resumed: yellow light on";
-	ui.StartInspectBtn->setText("Pause Scan");
+	ui.StartInspectBtn->setText(QStringLiteral("暂停检测"));
+	ui.StopInspectBtn->setText(QStringLiteral("停止检测"));
 }
 
 void MotionController::onScanStopped()
 {
 	m_scanLedOverride = LED_ALARM;
 	qWarning() << "[SCAN] stopped: red light on";
-	ui.StartInspectBtn->setText("Start Scan");
+	ui.StartInspectBtn->setText(QStringLiteral("开始检测"));
+	ui.StopInspectBtn->setText(m_scanResetPending ? QStringLiteral("重置") : QStringLiteral("停止检测"));
 	ui.LeftTime->setText("");
 }
 
@@ -397,8 +377,10 @@ void MotionController::onScanCompleted()
 		});
 	}
 
-	ui.StartInspectBtn->setText("Start Scan");
-	ui.LeftTime->setText("Scan Completed");
+	ui.StartInspectBtn->setText(QStringLiteral("开始检测"));
+	ui.StopInspectBtn->setText(QStringLiteral("停止检测"));
+	m_scanResetPending = false;
+	ui.LeftTime->setText(QStringLiteral("检测完成"));
 }
 
 // ============================================================================
@@ -676,7 +658,7 @@ void MotionController::updateAllAxisParameters()
 
 		if (!isConnected)
 		{
-			cfg.stateLineEdit->setText("Disconnected");
+			cfg.stateLineEdit->setText(QStringLiteral("未连接"));
 			cfg.locateLineEdit->setText("0.00");
 			cfg.speedLineEdit->setText("0.00");
 			continue;
@@ -780,6 +762,83 @@ void MotionController::updateAllAxisParameters()
 // ============================================================================
 // Config persistence.
 // ============================================================================
+
+void MotionController::ensureConfigFileExists()
+{
+	const QString path = configFilePath();
+	if (QFileInfo::exists(path))
+		return;
+
+	QFile file(path);
+	if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+		return;
+
+	QTextStream out(&file);
+	out << "[Home]\n";
+	out << "Mode=4\n";
+	out << "FwdIn0=1\n";
+	out << "RevIn0=0\n";
+	out << "DatumIn0=2\n";
+	out << "FwdIn1=4\n";
+	out << "RevIn1=3\n";
+	out << "DatumIn1=5\n";
+	out << "FwdIn3=7\n";
+	out << "RevIn3=6\n";
+	out << "DatumIn3=8\n";
+	out << "FwdIn4=10\n";
+	out << "RevIn4=9\n";
+	out << "DatumIn4=11\n";
+	out << "\n";
+	out << "[Axis0]\n";
+	out << "units=1000\n";
+	out << "lspeed=0\n";
+	out << "speed=20\n";
+	out << "dec=2000\n";
+	out << "sramp=10\n";
+	out << "dir=0\n";
+	out << "acc=2000\n";
+	out << "\n";
+	out << "[Scan]\n";
+	out << "Step=10\n";
+	out << "\n";
+	out << "[Led]\n";
+	out << "RedOp=0\n";
+	out << "YellowOp=1\n";
+	out << "GreenOp=2\n";
+	out << "BuzzerOp=3\n";
+	out << "BuzzerDurationMs=1000\n";
+	out << "\n";
+	out << "[Axis1]\n";
+	out << "units=1000\n";
+	out << "lspeed=0\n";
+	out << "speed=20\n";
+	out << "dec=2000\n";
+	out << "sramp=10\n";
+	out << "dir=0\n";
+	out << "acc=2000\n";
+	out << "\n";
+	out << "[Axis3]\n";
+	out << "units=1000\n";
+	out << "lspeed=0\n";
+	out << "speed=20\n";
+	out << "dec=2000\n";
+	out << "sramp=10\n";
+	out << "dir=0\n";
+	out << "acc=2000\n";
+	out << "\n";
+	out << "[Axis4]\n";
+	out << "units=1000\n";
+	out << "lspeed=0\n";
+	out << "speed=20\n";
+	out << "dec=2000\n";
+	out << "sramp=10\n";
+	out << "dir=0\n";
+	out << "acc=2000\n";
+	out << "\n";
+	out << "[Connection]\n";
+	out << "IP=192.168.0.11\n";
+	qInfo() << "[CONFIG] default config.ini created:" << path;
+}
 
 void MotionController::loadConfig()
 {

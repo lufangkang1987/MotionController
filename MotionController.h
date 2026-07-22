@@ -33,6 +33,7 @@ private slots:
     // ---- Inspection operations ----
     void on_OriginBtn_clicked();
     void on_StartInspectBtn_clicked();
+    void on_StopInspectBtn_clicked();
 
     // ---- Scan plan ----
     void on_StartPointBtn_clicked();
@@ -109,6 +110,7 @@ private:
     enum LedState { LED_OFF, LED_ALARM, LED_HOME, LED_NORMAL };
     LedState m_lastLedState = LED_OFF;
     LedState m_scanLedOverride = LED_OFF;
+    bool m_scanResetPending = false;
     int m_alarmLedOp = 0;
     int m_homeLedOp = 1;
     int m_normalLedOp = 2;
@@ -116,6 +118,7 @@ private:
     int m_buzzerDurationMs = 1000;
 
     // ---- Config persistence ----
+    void ensureConfigFileExists();
     void loadConfig();
     void saveConfig();
 

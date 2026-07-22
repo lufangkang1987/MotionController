@@ -10,7 +10,7 @@ ParaSettings::ParaSettings(int axis, const QString& title, QWidget* parent)
     : QWidget(parent), m_axis(axis)
 {
     ui.setupUi(this);
-    setWindowTitle(title + " Parameters");
+    setWindowTitle(title + " 参数设置");
     loadFromConfig();   // Load saved parameters from config.ini.
     updateParameters(); // Refresh UI from cached parameters.
 }

@@ -100,7 +100,7 @@ AxisService::AxisStatus AxisService::getStatus(int axis, const AxisParams& param
 
     if (!m_adapter || !m_adapter->isConnected())
     {
-        s.stateText = "Disconnected";
+        s.stateText = "未连接";
         return s;
     }
 
@@ -117,18 +117,18 @@ AxisService::AxisStatus AxisService::getStatus(int axis, const AxisParams& param
 
     // Status text.
     if (s.idle == -1)
-        s.stateText = "Stopped";
+        s.stateText = "停止";
     else if (s.idle == 0)
     {
         if (s.speed > 0.001f)
-            s.stateText = "Moving +";
+            s.stateText = "正转";
         else if (s.speed < -0.001f)
-            s.stateText = "Moving -";
+            s.stateText = "反转";
         else
-            s.stateText = "Idle";
+            s.stateText = "运行";
     }
     else
-        s.stateText = "Unknown";
+        s.stateText = "未知";
 
     return s;
 }
